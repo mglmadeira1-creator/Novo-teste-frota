@@ -1,13 +1,18 @@
 import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import App from './App';
+import { AdminAuthGuard } from './auth/AdminAuthGuard';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { MotoristaGuard } from './auth/MotoristaGuard';
+import { OficinaSessionGuard } from './auth/OficinaSessionGuard';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { PublicOnlyRoute } from './auth/PublicOnlyRoute';
 import { OficinaProtectedRoute } from './oficina/OficinaProtectedRoute';
 import { OficinaPublicOnlyRoute } from './oficina/OficinaPublicOnlyRoute';
 import { OficinaSessionProvider } from './oficina/OficinaSessionProvider';
 import { LoginPage } from './pages/LoginPage';
+import { MotoristaLoginPage } from './pages/motorista/MotoristaLoginPage';
+import { MotoristaPainelPage } from './pages/motorista/MotoristaPainelPage';
 import { MotoristaPlaceholderPage } from './pages/MotoristaPlaceholderPage';
 import { OficinaLoginPage } from './pages/oficina/OficinaLoginPage';
 import { OficinaTerminalPage } from './pages/oficina/OficinaTerminalPage';
@@ -121,27 +126,41 @@ export const AppRouter: React.FC = () => {
               <Route
                 path="/oficina/terminal"
                 element={(
-                  <OficinaProtectedRoute>
+                  <OficinaSessionGuard>
                     <OficinaTerminalPage />
-                  </OficinaProtectedRoute>
+                  </OficinaSessionGuard>
+                )}
+              />
+
+              <Route
+                path="/motorista/login"
+                element={(
+                  <PublicOnlyRoute>
+                    <MotoristaLoginPage />
+                  </PublicOnlyRoute>
+                )}
+              />
+
+              <Route
+                path="/motorista/painel"
+                element={(
+                  <MotoristaGuard>
+                    <MotoristaPainelPage />
+                  </MotoristaGuard>
                 )}
               />
 
               <Route
                 path="/motorista"
-                element={(
-                  <MotoristaRoute>
-                    <MotoristaPlaceholderPage />
-                  </MotoristaRoute>
-                )}
+                element={<Navigate to="/motorista/painel" replace />}
               />
 
               <Route
                 path="/"
                 element={(
-                  <ProtectedRoute>
+                  <AdminAuthGuard>
                     <DashboardContainer />
-                  </ProtectedRoute>
+                  </AdminAuthGuard>
                 )}
               />
 
