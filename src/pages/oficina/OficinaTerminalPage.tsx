@@ -1,0 +1,433 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, LogOut, RefreshCcw, ShieldCheck, Wrench } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useOficinaSession } from '../../oficina/OficinaSessionProvider';
+import { oficinaTerminalService } from '../../services/oficinaTerminalService';
+import { CartaoResolveResult, OficinaAbastecimentoConfirmado, OficinaOperacaoRecente, OficinaViaturaItem } from '../../types/oficina';
+
+const fuelOptions = [
+  { value: 'gasoleo', label: 'Gasóleo' },
+  { value: 'gasolina', label: 'Gasolina' },
+  { value: 'adblue', label: 'AdBlue' },
+  { value: 'gpl', label: 'GPL' },
+  { value: 'eletrico', label: 'Elétrico' },
+  { value: 'outro', label: 'Outro' }
+];
+
+type WizardStep = 'identificar' | 'viatura' | 'abastecimento' | 'confirmacao';
+
+function formatDateTime(value: string): string {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return value;
+  }
+
+  return new Date(parsed).toLocaleString('pt-PT');
+}
+
+function looksLikeQr(value: string): boolean {
+  return /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i.test(value);
+}
+
+function estadoLabel(estado?: string): string {
+  if (estado === 'ativo') return 'Ativo';
+  if (estado === 'bloqueado') return 'Bloqueado';
+  if (estado === 'suspenso') return 'Suspenso';
+  return estado || 'N/D';
+}
+
+export const OficinaTerminalPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { token, mecanico, terminal, logout } = useOficinaSession();
+
+  const [step, setStep] = useState<WizardStep>('identificar');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [blockedInfo, setBlockedInfo] = useState<{ estado: string; motoristaNome: string } | null>(null);
+
+  const [cartaoInput, setCartaoInput] = useState('');
+  const [resolved, setResolved] = useState<CartaoResolveResult | null>(null);
+
+  const [viaturas, setViaturas] = useState<OficinaViaturaItem[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [buscaViatura, setBuscaViatura] = useState('');
+
+  const [fuelType, setFuelType] = useState('gasoleo');
+  const [litros, setLitros] = useState('');
+  const [quilometragemKm, setQuilometragemKm] = useState('');
+
+  const [confirmado, setConfirmado] = useState<OficinaAbastecimentoConfirmado | null>(null);
+  const [recentes, setRecentes] = useState<OficinaOperacaoRecente[]>([]);
+
+  const selectedVehicle = useMemo(
+    () => viaturas.find((item) => item.cartrack_vehicle_id === selectedVehicleId),
+    [viaturas, selectedVehicleId]
+  );
+
+  const viaturasFiltradas = useMemo(() => {
+    const query = buscaViatura.trim().toLowerCase();
+    if (!query) {
+      return viaturas;
+    }
+    return viaturas.filter((v) => v.cartrack_registration.toLowerCase().includes(query));
+  }, [viaturas, buscaViatura]);
+
+  const refreshRecentes = async () => {
+    if (!token) {
+      return;
+    }
+    try {
+      const list = await oficinaTerminalService.operacoesRecentes(token, 20);
+      setRecentes(list);
+    } catch (err) {
+      console.error('[Oficina][Terminal] Falha ao carregar operacoes recentes', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshRecentes();
+  }, [token]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/oficina/login', { replace: true });
+  };
+
+  const resetWizard = () => {
+    setStep('identificar');
+    setCartaoInput('');
+    setResolved(null);
+    setBlockedInfo(null);
+    setViaturas([]);
+    setSelectedVehicleId('');
+    setBuscaViatura('');
+    setFuelType('gasoleo');
+    setLitros('');
+    setQuilometragemKm('');
+    setConfirmado(null);
+    setError(null);
+  };
+
+  const handleIdentificar = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!token || !cartaoInput.trim()) {
+      setError('Le o QR Code ou introduz o numero do cartao.');
+      return;
+    }
+
+    setError(null);
+    setBlockedInfo(null);
+    setIsSubmitting(true);
+
+    try {
+      const input = looksLikeQr(cartaoInput)
+        ? { qrCode: cartaoInput.trim() }
+        : { numeroCartao: cartaoInput.trim() };
+
+      const result = await oficinaTerminalService.resolveCartao(token, input);
+      setResolved(result);
+
+      const vehicles = await oficinaTerminalService.listViaturas(token, result.motorista.id);
+      setViaturas(vehicles);
+      setStep('viatura');
+    } catch (err) {
+      const cartaoResult = (err as Error & { cartaoResult?: CartaoResolveResult }).cartaoResult;
+      if (cartaoResult) {
+        setBlockedInfo({ estado: cartaoResult.cartao.estado, motoristaNome: cartaoResult.motorista.nome });
+        setError('Cartão não autorizado para abastecimento.');
+      } else {
+        console.error('[Oficina][Terminal] Falha ao identificar cartao', err);
+        setError('Cartão não encontrado. Verifica o número ou o QR Code.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSelecionarViatura = (vehicleId: string) => {
+    setSelectedVehicleId(vehicleId);
+  };
+
+  const handleAvancarParaAbastecimento = () => {
+    if (!selectedVehicleId) {
+      setError('Seleciona a viatura utilizada.');
+      return;
+    }
+    setError(null);
+    setStep('abastecimento');
+  };
+
+  const handleSubmitAbastecimento = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!token || !resolved || !selectedVehicle) {
+      return;
+    }
+
+    const litrosNumber = Number(litros.replace(',', '.'));
+    const kmsNumber = Number(quilometragemKm.replace(',', '.'));
+
+    if (!Number.isFinite(litrosNumber) || litrosNumber <= 0 || !Number.isFinite(kmsNumber) || kmsNumber <= 0) {
+      setError('Litros e quilometragem devem ser números positivos.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const operacao = await oficinaTerminalService.registarAbastecimento(token, {
+        motoristaId: resolved.motorista.id,
+        motoristaNomeSnapshot: resolved.motorista.nome,
+        motoristaQrCodigo: cartaoInput.trim(),
+        cartaoId: resolved.cartao.id,
+        cartrackVehicleId: selectedVehicle.cartrack_vehicle_id,
+        registration: selectedVehicle.cartrack_registration,
+        fuelType,
+        litros: litrosNumber,
+        quilometragemKm: Math.round(kmsNumber)
+      });
+
+      setConfirmado(operacao);
+      setStep('confirmacao');
+      await refreshRecentes();
+    } catch (err) {
+      console.error('[Oficina][Terminal] Falha ao registar abastecimento', err);
+      setError('Não foi possível registar o abastecimento.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <header className="border-b border-slate-800 bg-slate-900/70 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="inline-flex items-center gap-2 text-cyan-300 text-xs font-semibold uppercase tracking-wide">
+              <Wrench className="w-4 h-4" />
+              Frota Pro · Oficina
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Mecânico: <span className="text-slate-200">{mecanico?.nome || 'N/D'}</span> | Terminal: <span className="text-slate-200">{terminal?.nome || 'N/D'}</span>
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={refreshRecentes}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700"
+            >
+              <RefreshCcw className="w-3.5 h-3.5" />
+              Atualizar
+            </button>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs bg-rose-600/80 hover:bg-rose-500 border border-rose-400/20"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Trocar mecânico
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto p-4 grid lg:grid-cols-[1.1fr_0.9fr] gap-4">
+        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6">
+          {error && (
+            <div className="mb-4 text-xs text-rose-200 bg-rose-500/15 border border-rose-500/25 rounded-lg px-3 py-2">
+              {error}
+            </div>
+          )}
+
+          {step === 'identificar' && (
+            <form onSubmit={handleIdentificar} className="space-y-4">
+              <h2 className="text-sm font-semibold">Passo 1 — Identificar motorista/cartão</h2>
+              <label className="block space-y-1">
+                <span className="text-xs text-slate-400">Número do cartão ou código QR</span>
+                <input
+                  autoFocus
+                  value={cartaoInput}
+                  onChange={(event) => setCartaoInput(event.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-3 text-lg font-mono tracking-wider focus:outline-none focus:border-cyan-500"
+                  placeholder="1234 5678 9012 3456"
+                />
+              </label>
+
+              {blockedInfo && (
+                <div className="border border-amber-400/25 bg-amber-500/10 rounded-lg p-3 text-xs text-amber-200">
+                  <p className="font-semibold">MOTORISTA: {blockedInfo.motoristaNome}</p>
+                  <p>ESTADO: {estadoLabel(blockedInfo.estado)}</p>
+                  <p className="mt-1">Cartão não autorizado para abastecimento.</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60"
+              >
+                {isSubmitting ? 'A identificar...' : 'Identificar cartão'}
+              </button>
+            </form>
+          )}
+
+          {step === 'viatura' && resolved && (
+            <div className="space-y-4">
+              <h2 className="text-sm font-semibold">Passo 2 — Selecionar viatura</h2>
+
+              <div className="border border-emerald-400/20 bg-emerald-500/10 rounded-lg p-3 text-xs text-emerald-200">
+                <p className="font-semibold">MOTORISTA: {resolved.motorista.nome}</p>
+                <p>CARTÃO: {resolved.cartao.numeroCartao}</p>
+                <p>ESTADO: {estadoLabel(resolved.cartao.estado)}</p>
+              </div>
+
+              <input
+                value={buscaViatura}
+                onChange={(event) => setBuscaViatura(event.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                placeholder="Pesquisar por matrícula..."
+              />
+
+              <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                {viaturasFiltradas.map((v) => (
+                  <button
+                    key={v.cartrack_vehicle_id}
+                    type="button"
+                    onClick={() => handleSelecionarViatura(v.cartrack_vehicle_id)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm ${selectedVehicleId === v.cartrack_vehicle_id ? 'border-cyan-500 bg-cyan-500/10 text-cyan-100' : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'}`}
+                  >
+                    {v.cartrack_registration}
+                  </button>
+                ))}
+                {viaturasFiltradas.length === 0 && (
+                  <p className="text-xs text-slate-500">Nenhuma viatura disponível para este motorista.</p>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button type="button" onClick={resetWizard} className="px-4 py-2.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700">
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAvancarParaAbastecimento}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-cyan-600 hover:bg-cyan-500"
+                >
+                  Continuar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'abastecimento' && resolved && selectedVehicle && (
+            <form onSubmit={handleSubmitAbastecimento} className="space-y-4">
+              <h2 className="text-sm font-semibold">Passo 3 — Abastecimento</h2>
+
+              <div className="grid sm:grid-cols-2 gap-2 text-xs text-slate-300">
+                <p>Motorista<br /><span className="text-slate-100 font-semibold">{resolved.motorista.nome}</span></p>
+                <p>Cartão<br /><span className="text-slate-100 font-mono">{resolved.cartao.numeroCartao}</span></p>
+                <p>Viatura<br /><span className="text-slate-100 font-semibold">{selectedVehicle.cartrack_registration}</span></p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-3">
+                <label className="block space-y-1">
+                  <span className="text-xs text-slate-400">Combustível</span>
+                  <select
+                    value={fuelType}
+                    onChange={(event) => setFuelType(event.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                  >
+                    {fuelOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block space-y-1">
+                  <span className="text-xs text-slate-400">Litros</span>
+                  <input
+                    value={litros}
+                    onChange={(event) => setLitros(event.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                    placeholder="45,20"
+                  />
+                </label>
+
+                <label className="block space-y-1">
+                  <span className="text-xs text-slate-400">Quilometragem (km)</span>
+                  <input
+                    value={quilometragemKm}
+                    onChange={(event) => setQuilometragemKm(event.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                    placeholder="182450"
+                  />
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setStep('viatura')} className="px-4 py-2.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700">
+                  Voltar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  {isSubmitting ? 'A registar...' : 'Registar abastecimento'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {step === 'confirmacao' && confirmado && (
+            <div className="space-y-4 text-center py-6">
+              <CheckCircle2 className="w-14 h-14 text-emerald-400 mx-auto" />
+              <h2 className="text-lg font-bold text-emerald-300">ABASTECIMENTO REGISTADO</h2>
+
+              <div className="text-left text-sm text-slate-300 max-w-sm mx-auto space-y-2 bg-slate-950/60 border border-slate-800 rounded-xl p-4">
+                <p>Motorista:<br /><span className="text-slate-100 font-semibold">{confirmado.motoristaNomeSnapshot}</span></p>
+                <p>Viatura:<br /><span className="text-slate-100 font-semibold">{confirmado.registration}</span></p>
+                <p>Combustível:<br /><span className="text-slate-100 font-semibold capitalize">{confirmado.fuelType}</span></p>
+                <p>Litros:<br /><span className="text-slate-100 font-semibold">{confirmado.litros.toFixed(2)} L</span></p>
+                <p>Quilometragem:<br /><span className="text-slate-100 font-semibold">{confirmado.quilometragemKm.toLocaleString('pt-PT')} km</span></p>
+                <p>Data/hora:<br /><span className="text-slate-100 font-semibold">{formatDateTime(confirmado.operacao_ts)}</span></p>
+                <p>Mecânico:<br /><span className="text-slate-100 font-semibold">{confirmado.mecanicoNome}</span></p>
+                <p>Oficina:<br /><span className="text-slate-100 font-semibold">{confirmado.terminalNome}</span></p>
+              </div>
+
+              <button
+                onClick={resetWizard}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold bg-cyan-600 hover:bg-cyan-500"
+              >
+                NOVO ABASTECIMENTO
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5">
+          <h2 className="text-sm font-semibold mb-4">Operações recentes do terminal</h2>
+
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+            {recentes.length === 0 && <div className="text-xs text-slate-400">Sem operações registadas.</div>}
+            {recentes.map((item) => (
+              <article key={item.id} className="border border-slate-800 rounded-lg p-3 bg-slate-950/50">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-cyan-300 font-semibold">{item.registration}</span>
+                  <span className="text-[11px] text-slate-400">{formatDateTime(item.operacao_ts)}</span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1">Motorista: {item.motorista_nome_snapshot}</p>
+                <p className="text-xs text-slate-300">Mecânico: {item.mecanico_nome_snapshot}</p>
+                <p className="text-xs text-slate-300">{item.fuel_type} | {item.litros} L | {item.quilometragem_km} km</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+};
+

@@ -49,6 +49,8 @@ export const ViaturasListTable: React.FC<Props> = ({ viaturas, onSelectViatura }
           <thead className="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800 uppercase tracking-wider text-[11px]">
             <tr>
               <th className="py-3.5 px-4">Viatura / Matrícula</th>
+              <th className="py-3.5 px-4">Motorista</th>
+              <th className="py-3.5 px-4">TAG</th>
               <th className="py-3.5 px-4">Estado Telemático</th>
               <th className="py-3.5 px-4">ID Interno</th>
               <th className="py-3.5 px-4">Centro de Custo</th>
@@ -72,6 +74,25 @@ export const ViaturasListTable: React.FC<Props> = ({ viaturas, onSelectViatura }
                       <span className="text-[10px] text-slate-400">ID Cartrack: {v.cartrack_vehicle_id}</span>
                     </div>
                   </div>
+                </td>
+
+                {/* Motorista */}
+                <td className="py-3.5 px-4">
+                  <span className="font-semibold text-slate-200 block text-xs">{v.motorista_nome}</span>
+                  {v.motorista_id && (
+                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">ID: {v.motorista_id}</span>
+                  )}
+                </td>
+
+                {/* TAG */}
+                <td className="py-3.5 px-4">
+                  {v.motorista_tag ? (
+                    <span className="inline-flex items-center rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-mono text-sky-300">
+                      {v.motorista_tag}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500">-</span>
+                  )}
                 </td>
 
                 {/* Estado Telemático */}

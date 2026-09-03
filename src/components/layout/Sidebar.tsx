@@ -1,15 +1,30 @@
 import React from 'react';
-import { Truck, Fuel, Users, Wrench, Bell, MapPin, Gauge, ShieldCheck, Settings, Layers } from 'lucide-react';
+import { Truck, Fuel, Users, Wrench, Bell, MapPin, Gauge, LogOut } from 'lucide-react';
+import { AppRole } from '../../types/auth';
 
 interface SidebarProps {
   activeModule: string;
   setActiveModule: (mod: string) => void;
+  userName: string;
+  userEmail: string;
+  userRole: AppRole | null;
+  onLogout: () => Promise<void>;
+  isLoggingOut: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeModule,
+  setActiveModule,
+  userName,
+  userEmail,
+  userRole,
+  onLogout,
+  isLoggingOut
+}) => {
   const navItems = [
     { id: 'viaturas', label: 'Viaturas', icon: Truck, active: true },
-    { id: 'combustiveis', label: 'Combustíveis', icon: Fuel, badge: 'Em breve' },
+    { id: 'combustiveis', label: 'Combustíveis', icon: Fuel, active: true },
+    { id: 'oficina', label: 'Oficina', icon: Wrench, active: userRole === 'administrador', badge: userRole === 'administrador' ? undefined : 'Admin' },
     { id: 'motoristas', label: 'Motoristas', icon: Users, badge: 'Em breve' },
     { id: 'manutencao', label: 'Manutenção', icon: Wrench, badge: 'Em breve' },
     { id: 'alertas', label: 'Alertas', icon: Bell, badge: 'Em breve' },
@@ -66,12 +81,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule 
       </nav>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/40">
+      <div className="p-4 border-t border-slate-800 bg-slate-950/40 space-y-3">
         <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>Cartrack Fleet API Ligado</span>
         </div>
         <p className="text-[10px] text-slate-400 mt-1">Fonte da Telemetria: Official Rest API</p>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5">
+          <span className="text-[10px] text-slate-500 uppercase tracking-wide">Sessão</span>
+          <span className="text-xs text-slate-200 font-semibold block mt-1 truncate">{userName}</span>
+          <span className="text-[11px] text-slate-400 block truncate">{userEmail}</span>
+          <span className="text-[10px] text-slate-500 block mt-0.5">
+            Role: {userRole === 'administrador' ? 'Administrador' : userRole === 'gestor' ? 'Gestor' : userRole === 'motorista' ? 'Motorista' : 'Por configurar'}
+          </span>
+
+          <button
+            onClick={onLogout}
+            disabled={isLoggingOut}
+            className="mt-2 w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-700 disabled:opacity-60"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            {isLoggingOut ? 'A terminar sessão...' : 'Terminar sessão'}
+          </button>
+        </div>
       </div>
     </aside>
   );

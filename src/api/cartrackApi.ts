@@ -2,16 +2,137 @@ import { CartrackVehicleRaw, CartrackVehicleStatusRaw, CartrackTripRaw } from '.
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isMeaningfulIdentifier(value: unknown): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  return trimmed !== '00000000-0000-0000-0000-000000000000';
+}
+
+function normalizeCartrackTimestamp(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  const withIsoSeparator = trimmed.replace(' ', 'T');
+  const withTimezone = withIsoSeparator.replace(/([+-]\d{2})$/, '$1:00');
+  const parsed = Date.parse(withTimezone);
+
+  return Number.isNaN(parsed) ? trimmed : new Date(parsed).toISOString();
+}
+
+function normalizeOdometerKm(status: CartrackVehicleStatusRaw): number | undefined {
+  if (isFiniteNumber(status.odometer_in_kms)) {
+    return status.odometer_in_kms;
+  }
+
+  if (!isFiniteNumber(status.odometer)) {
+    return undefined;
+  }
+
+  if (status.location || status.event_ts) {
+    return Math.round(status.odometer / 1000);
+  }
+
+  return status.odometer;
+}
+
+function normalizeVehicleStatus(status: CartrackVehicleStatusRaw): CartrackVehicleStatusRaw {
+  const timestamp = normalizeCartrackTimestamp(
+    status.timestamp ?? status.event_ts ?? status.last_communication_time ?? status.location?.updated
+  );
+
+  const latitude = isFiniteNumber(status.latitude)
+    ? status.latitude
+    : isFiniteNumber(status.location?.latitude)
+      ? status.location.latitude
+      : undefined;
+
+  const longitude = isFiniteNumber(status.longitude)
+    ? status.longitude
+    : isFiniteNumber(status.location?.longitude)
+      ? status.location.longitude
+      : undefined;
+
+  const address = status.address ?? status.location?.position_description ?? undefined;
+  const batteryLevel = isFiniteNumber(status.battery_level)
+    ? status.battery_level
+    : isFiniteNumber(status.electric?.battery_percentage_left)
+      ? status.electric.battery_percentage_left
+      : undefined;
+  const fuelLevel = isFiniteNumber(status.fuel_level)
+    ? status.fuel_level
+    : isFiniteNumber(status.fuel?.level)
+      ? status.fuel.level
+      : undefined;
+
+  return {
+    ...status,
+    timestamp,
+    last_communication_time: timestamp,
+    latitude,
+    longitude,
+    address,
+    speed: isFiniteNumber(status.speed) ? status.speed : undefined,
+    odometer_in_kms: normalizeOdometerKm(status),
+    battery_level: batteryLevel,
+    fuel_level: fuelLevel
+  };
+}
+
+function logVehiclesStatusShape(statuses: CartrackVehicleStatusRaw[]): void {
+  if (!statuses.length) {
+    console.info('[cartrackApi] vehicles_status respondeu sem registos');
+    return;
+  }
+
+  const sample = statuses[0];
+  console.info('[cartrackApi] vehicles_status shape', {
+    total: statuses.length,
+    topLevelKeys: Object.keys(sample).sort(),
+    locationKeys: sample.location ? Object.keys(sample.location).sort() : [],
+    sample: {
+      vehicle_id: sample.vehicle_id,
+      registration: sample.registration,
+      event_ts: sample.event_ts,
+      timestamp: sample.timestamp,
+      speed: sample.speed,
+      ignition: sample.ignition,
+      idling: sample.idling,
+      driver_id: sample.driver?.driver_id,
+      driver_name: `${sample.driver?.first_name || ''} ${sample.driver?.last_name || ''}`.trim() || undefined,
+      driver_id_tag: sample.driver?.driver_id_tag,
+      last_identification_tag_id: sample.last_identification_tag_id,
+      normalized_tag: isMeaningfulIdentifier(sample.last_identification_tag_id)
+        ? sample.last_identification_tag_id
+        : isMeaningfulIdentifier(sample.driver?.driver_id_tag)
+          ? sample.driver?.driver_id_tag
+          : undefined,
+      latitude: sample.latitude,
+      longitude: sample.longitude,
+      gps_fix_type: sample.location?.gps_fix_type,
+      address: sample.address
+    }
+  });
+}
+
 // Método seguro de invocação da Edge Function 'cartrack-proxy'
 async function callProxy<T>(action: string, params: Record<string, string> = {}): Promise<T> {
   const queryParams = new URLSearchParams({ action, ...params });
   
   // URL da Edge Function Supabase
   let proxyUrl = `${SUPABASE_URL}/functions/v1/cartrack-proxy?${queryParams.toString()}`;
-
-  // Fallback local se a Edge Function ainda não estiver publicada em ambiente de dev
-  const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
   try {
     const res = await fetch(proxyUrl, {
       headers: {
@@ -25,7 +146,7 @@ async function callProxy<T>(action: string, params: Record<string, string> = {})
 
     return await res.json() as T;
   } catch (err) {
-    console.warn('[cartrackApi] Chamada à Edge Function falhou ou não configurada. A usar simulação segura para dev:', err);
+    console.error('[cartrackApi] Chamada à Edge Function falhou:', err);
     throw err;
   }
 }
@@ -37,8 +158,8 @@ export const cartrackApi = {
       const res = await callProxy<{ data?: CartrackVehicleRaw[] }>('vehicles');
       return res.data || [];
     } catch (e) {
-      // Retorna dados estruturados de demonstração fiéis se falhar
-      return mockVehicles;
+      console.error('[cartrackApi] Falha ao obter viaturas Cartrack:', e);
+      return [];
     }
   },
 
@@ -46,9 +167,12 @@ export const cartrackApi = {
   getVehiclesStatus: async (): Promise<CartrackVehicleStatusRaw[]> => {
     try {
       const res = await callProxy<{ data?: CartrackVehicleStatusRaw[] }>('vehicles_status');
-      return res.data || [];
+      const normalizedStatuses = (res.data || []).map(normalizeVehicleStatus);
+      logVehiclesStatusShape(normalizedStatuses);
+      return normalizedStatuses;
     } catch (e) {
-      return mockVehiclesStatus;
+      console.error('[cartrackApi] Falha ao obter estado telemático Cartrack:', e);
+      return [];
     }
   },
 
@@ -61,29 +185,8 @@ export const cartrackApi = {
       const res = await callProxy<{ data?: CartrackTripRaw[] }>('trips', params);
       return res.data || [];
     } catch (e) {
-      return mockTrips.filter(t => t.registration === registration || !registration);
+      console.error('[cartrackApi] Falha ao obter viagens Cartrack:', e);
+      return [];
     }
   }
 };
-
-// Dados Mock Estruturados Fiéis à API Cartrack (Para fallback dev quando sem secrets Supabase)
-const mockVehicles: CartrackVehicleRaw[] = [
-  { vehicle_id: "789123", registration: "16-UO-20", make: "Opel", model: "Vivaro", model_year: "2018", chassis_number: "W0V7F312345678901", colour: "Branco", initial_odometer: 112000 },
-  { vehicle_id: "789124", registration: "BL-95-MO", make: "Volvo", model: "B-12", model_year: "2024", chassis_number: "YV3B12A9876543210", colour: "Cinza", initial_odometer: 45000 },
-  { vehicle_id: "789125", registration: "26-SQ-06", make: "Ford", model: "Focus", model_year: "2017", chassis_number: "WF0XXXGCDX7A12345", colour: "Preto", initial_odometer: 185400 },
-  { vehicle_id: "789126", registration: "39-83-ZI", make: "Toyota", model: "Caetano", model_year: "2004", chassis_number: "JTE45678901234567", colour: "Azul", initial_odometer: 320100 },
-  { vehicle_id: "789127", registration: "32-UT-37", make: "Renault", model: "Trafic", model_year: "2018", chassis_number: "VF1FL000000000000", colour: "Branco", initial_odometer: 142000 }
-];
-
-const mockVehiclesStatus: CartrackVehicleStatusRaw[] = [
-  { vehicle_id: "789123", registration: "16-UO-20", make: "Opel", model: "Vivaro", latitude: 37.0891, longitude: -8.2458, speed: 64, ignition: true, odometer: 148520, odometer_in_kms: 148520, timestamp: new Date().toISOString(), address: "Av. 5 de Outubro, Albufeira", battery_level: 13.8 },
-  { vehicle_id: "789124", registration: "BL-95-MO", make: "Volvo", model: "B-12", latitude: 37.1382, longitude: -8.5376, speed: 0, ignition: true, odometer: 58900, odometer_in_kms: 58900, timestamp: new Date().toISOString(), address: "Terminal Rodoviário de Portimão", battery_level: 24.2 },
-  { vehicle_id: "789125", registration: "26-SQ-06", make: "Ford", model: "Focus", latitude: 37.0175, longitude: -7.9308, speed: 0, ignition: false, odometer: 210340, odometer_in_kms: 210340, timestamp: new Date(Date.now() - 3600000).toISOString(), address: "Estreito de Câmara de Lobos, Faro", battery_level: 12.4 },
-  { vehicle_id: "789126", registration: "39-83-ZI", make: "Toyota", model: "Caetano", latitude: 37.1023, longitude: -8.1345, speed: 45, ignition: true, odometer: 345200, odometer_in_kms: 345200, timestamp: new Date().toISOString(), address: "EN125, Quarteira", battery_level: 13.5 },
-  { vehicle_id: "789127", registration: "32-UT-37", make: "Renault", model: "Trafic", latitude: 37.0888, longitude: -8.2511, speed: 0, ignition: false, odometer: 165800, odometer_in_kms: 165800, timestamp: new Date(Date.now() - 86400000).toISOString(), address: "Oficina Central AlgarTempo, Albufeira", battery_level: 12.1 }
-];
-
-const mockTrips: CartrackTripRaw[] = [
-  { trip_id: "t1", vehicle_id: "789123", registration: "16-UO-20", start_timestamp: new Date(Date.now() - 7200000).toISOString(), end_timestamp: new Date(Date.now() - 3600000).toISOString(), start_location: "Garagem Central, Faro", end_location: "Av. 5 de Outubro, Albufeira", distance_km: 42.5, duration_seconds: 3600, max_speed_kmh: 98 },
-  { trip_id: "t2", vehicle_id: "789123", registration: "16-UO-20", start_timestamp: new Date(Date.now() - 18000000).toISOString(), end_timestamp: new Date(Date.now() - 14400000).toISOString(), start_location: "Aeroporto de Faro", end_location: "Garagem Central, Faro", distance_km: 12.3, duration_seconds: 1200, max_speed_kmh: 75 }
-];

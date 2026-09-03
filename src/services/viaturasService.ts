@@ -1,7 +1,99 @@
 import { cartrackApi } from '../api/cartrackApi';
 import { supabase } from '../api/supabaseClient';
+import { CartrackVehicleStatusRaw } from '../types/cartrack';
 import { ViaturaCompleta, EstadoOperacional } from '../types/viaturaCompleta';
 import { ViaturaAdminData, ViaturaDocumento, ViaturaManutencao } from '../types/viaturaAdmin';
+
+function hasFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function normalizeText(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function resolveTag(status?: CartrackVehicleStatusRaw): { tag?: string; source?: 'last_identification_tag_id' | 'driver.driver_id_tag' } {
+  const lastIdentificationTag = normalizeText(status?.last_identification_tag_id);
+  if (lastIdentificationTag && lastIdentificationTag !== '00000000-0000-0000-0000-000000000000') {
+    return { tag: lastIdentificationTag, source: 'last_identification_tag_id' };
+  }
+
+  const driverTag = normalizeText(status?.driver?.driver_id_tag);
+  if (driverTag) {
+    return { tag: driverTag, source: 'driver.driver_id_tag' };
+  }
+
+  return {};
+}
+
+function resolveDriverName(status: CartrackVehicleStatusRaw | undefined, admin: ViaturaAdminData): string {
+  const firstName = normalizeText(status?.driver?.first_name);
+  const lastName = normalizeText(status?.driver?.last_name);
+  const cartrackName = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+  if (cartrackName) {
+    return cartrackName;
+  }
+
+  const adminName = normalizeText(admin.motorista_nome);
+  if (adminName) {
+    return adminName;
+  }
+
+  return 'Motorista não registado';
+}
+
+function resolveTimestamp(status?: CartrackVehicleStatusRaw): string | undefined {
+  return status?.timestamp || status?.last_communication_time || status?.event_ts || status?.location?.updated || undefined;
+}
+
+function resolveEstadoOperacional(status?: CartrackVehicleStatusRaw): EstadoOperacional {
+  if (!status) {
+    return 'sem_sinal';
+  }
+
+  const lastCommunication = resolveTimestamp(status);
+  const lastCommunicationMs = lastCommunication ? Date.parse(lastCommunication) : Number.NaN;
+  const isFresh = Number.isFinite(lastCommunicationMs)
+    ? (Date.now() - lastCommunicationMs) / (1000 * 60) <= 120
+    : false;
+
+  const hasGpsCoordinates = hasFiniteNumber(status.latitude) && hasFiniteNumber(status.longitude);
+  const hasTelemetrySignal = Boolean(
+    lastCommunication ||
+    hasGpsCoordinates ||
+    hasFiniteNumber(status.speed) ||
+    typeof status.ignition === 'boolean' ||
+    typeof status.idling === 'boolean'
+  );
+
+  if (hasFiniteNumber(status.speed) && status.speed > 3) {
+    return 'em_marcha';
+  }
+
+  if (!isFresh && !hasGpsCoordinates && !hasFiniteNumber(status.speed) && typeof status.ignition !== 'boolean') {
+    return 'sem_sinal';
+  }
+
+  if (!isFresh && !hasTelemetrySignal) {
+    return 'sem_sinal';
+  }
+
+  if (status.ignition === true || status.idling === true) {
+    return 'parado';
+  }
+
+  if (status.ignition === false) {
+    return 'ignicao_off';
+  }
+
+  return hasTelemetrySignal ? 'parado' : 'sem_sinal';
+}
 
 export const viaturasService = {
   // Obter lista combinada de viaturas (Cartrack Telemática + Supabase Administrativo)
@@ -12,6 +104,27 @@ export const viaturasService = {
         cartrackApi.getVehicles(),
         cartrackApi.getVehiclesStatus()
       ]);
+
+      console.info('[viaturasService] Resumo Cartrack', {
+        totalVehicles: vehiclesList.length,
+        totalStatuses: vehiclesStatus.length,
+        sampleStatuses: vehiclesStatus.slice(0, 3).map(status => ({
+          vehicle_id: status.vehicle_id,
+          registration: status.registration,
+          speed: status.speed,
+          ignition: status.ignition,
+          idling: status.idling,
+          timestamp: resolveTimestamp(status),
+          driver_id: status.driver?.driver_id,
+          driver_first_name: status.driver?.first_name,
+          driver_last_name: status.driver?.last_name,
+          driver_id_tag: status.driver?.driver_id_tag,
+          last_identification_tag_id: status.last_identification_tag_id,
+          latitude: status.latitude,
+          longitude: status.longitude,
+          address: status.address
+        }))
+      });
 
       // Map rápido por vehicle_id e registration
       const statusMap = new Map<string, typeof vehiclesStatus[0]>();
@@ -50,22 +163,9 @@ export const viaturasService = {
         };
 
         // Determinar estado operacional real
-        let estado: EstadoOperacional = 'sem_sinal';
-        if (st) {
-          const now = Date.now();
-          const lastComm = st.timestamp ? new Date(st.timestamp).getTime() : 0;
-          const diffMinutes = (now - lastComm) / (1000 * 60);
-
-          if (diffMinutes > 120) {
-            estado = 'sem_sinal';
-          } else if (st.speed && st.speed > 3) {
-            estado = 'em_marcha';
-          } else if (st.ignition) {
-            estado = 'parado';
-          } else {
-            estado = 'ignicao_off';
-          }
-        }
+        const estado = resolveEstadoOperacional(st);
+        const driverTagInfo = resolveTag(st);
+        const motoristaNome = resolveDriverName(st, adm);
 
         return {
           cartrack_vehicle_id: vid,
@@ -74,14 +174,22 @@ export const viaturasService = {
           model: v.model || st?.model || 'N/D',
           model_year: String(v.model_year || ''),
           chassis_number: v.chassis_number || '',
-          latitude: st?.latitude || 0,
-          longitude: st?.longitude || 0,
+          latitude: hasFiniteNumber(st?.latitude) ? st.latitude : 0,
+          longitude: hasFiniteNumber(st?.longitude) ? st.longitude : 0,
           address: st?.address || 'Sem localização reportada',
-          speed: st?.speed || 0,
-          ignition: st?.ignition || false,
-          odometer_km: st?.odometer || st?.odometer_in_kms || v.initial_odometer || 0,
-          last_communication: st?.timestamp || new Date().toISOString(),
+          speed: hasFiniteNumber(st?.speed) ? st.speed : 0,
+          ignition: st?.ignition === true,
+          odometer_km: hasFiniteNumber(st?.odometer_in_kms)
+            ? st.odometer_in_kms
+            : hasFiniteNumber(st?.odometer)
+              ? st.odometer
+              : v.initial_odometer || 0,
+          last_communication: resolveTimestamp(st) || new Date().toISOString(),
           estado_operacional: estado,
+          motorista_nome: motoristaNome,
+          motorista_id: normalizeText(st?.driver?.driver_id),
+          motorista_tag: driverTagInfo.tag,
+          motorista_tag_origem: driverTagInfo.source,
           admin: adm,
           documentos: [],
           manutencoes: []

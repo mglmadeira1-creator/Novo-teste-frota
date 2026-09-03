@@ -20,8 +20,8 @@ serve(async (req) => {
     const endDate = url.searchParams.get("end_date");
     const limit = url.searchParams.get("limit") || "100";
 
-    const username = Deno.env.get("CARTRACK_USERNAME") || "ALGA00012";
-    const password = Deno.env.get("CARTRACK_PASSWORD") || "Tropical_Inspire98";
+    const username = Deno.env.get("CARTRACK_USERNAME");
+    const password = Deno.env.get("CARTRACK_PASSWORD");
     const baseUrl = Deno.env.get("CARTRACK_BASE_URL") || "https://fleetapi-pt.cartrack.com/rest";
 
     if (!username || !password) {
@@ -77,6 +77,33 @@ serve(async (req) => {
     }
 
     const data = await cartrackRes.json();
+
+    if (action === "vehicles_status" && Array.isArray(data?.data)) {
+      const sample = data.data[0];
+      console.log("[CartrackProxy] vehicles_status payload", {
+        total: data.data.length,
+        topLevelKeys: sample ? Object.keys(sample).sort() : [],
+        locationKeys: sample?.location ? Object.keys(sample.location).sort() : [],
+        sample: sample ? {
+          vehicle_id: sample.vehicle_id,
+          registration: sample.registration,
+          event_ts: sample.event_ts,
+          speed: sample.speed,
+          ignition: sample.ignition,
+          idling: sample.idling,
+          driver_id: sample.driver?.driver_id,
+          driver_first_name: sample.driver?.first_name,
+          driver_last_name: sample.driver?.last_name,
+          driver_id_tag: sample.driver?.driver_id_tag,
+          last_identification_tag_id: sample.last_identification_tag_id,
+          locationUpdated: sample.location?.updated,
+          latitude: sample.location?.latitude,
+          longitude: sample.location?.longitude,
+          gps_fix_type: sample.location?.gps_fix_type
+        } : null
+      });
+    }
+
     return new Response(JSON.stringify(data), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }

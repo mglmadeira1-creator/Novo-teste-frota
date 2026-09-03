@@ -20,6 +20,10 @@ export interface ViaturaCompleta {
   odometer_km: number;
   last_communication: string;
   estado_operacional: EstadoOperacional;
+  motorista_nome: string;
+  motorista_id?: string;
+  motorista_tag?: string;
+  motorista_tag_origem?: 'last_identification_tag_id' | 'driver.driver_id_tag';
 
   // Dados Administrativos (Supabase)
   admin: ViaturaAdminData;
