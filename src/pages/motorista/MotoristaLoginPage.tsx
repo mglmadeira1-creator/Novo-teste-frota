@@ -43,22 +43,27 @@ export const MotoristaLoginPage: React.FC = () => {
         body: { action: 'login_motorista', numeroCartao, pin }
       });
 
+      const payload = (data ?? {}) as Record<string, unknown>;
+
       if (lookupError) {
-        throw lookupError;
+        const message = typeof payload.error === 'string'
+          ? payload.error
+          : (lookupError as Error)?.message || 'Não foi possível validar este cartão.';
+        throw new Error(message);
       }
 
-      if (!data?.card || !data.token || !data.expiresAt) {
+      if (!payload.card || !payload.token || !payload.expiresAt) {
         throw new Error('Cartão ou PIN inválido.');
       }
 
       writeMotoristaSession({
-        token: data.token,
-        expiresAt: data.expiresAt,
-        numeroCartao: data.card.numeroCartao,
-        motoristaId: data.card.motoristaId || null,
-        motoristaNome: data.card.motoristaNome || 'Motorista',
-        qrTokenId: data.card.qrTokenId || null,
-        estado: data.card.estado || 'ativo',
+        token: String(payload.token),
+        expiresAt: String(payload.expiresAt),
+        numeroCartao: String((payload.card as Record<string, unknown>)?.numeroCartao ?? ''),
+        motoristaId: (payload.card as Record<string, unknown>)?.motoristaId as string | null || null,
+        motoristaNome: String((payload.card as Record<string, unknown>)?.motoristaNome ?? 'Motorista'),
+        qrTokenId: (payload.card as Record<string, unknown>)?.qrTokenId as string | null || null,
+        estado: String((payload.card as Record<string, unknown>)?.estado ?? 'ativo'),
         loggedAt: new Date().toISOString()
       });
 

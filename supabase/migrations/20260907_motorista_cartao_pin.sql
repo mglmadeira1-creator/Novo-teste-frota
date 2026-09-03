@@ -23,7 +23,6 @@ alter table public.motorista_sessoes enable row level security;
 -- Os PINs sao sempre validados pela Edge Function com service role.
 -- Nao existem policies de cliente para esta tabela.
 
--- Limpeza explicita dos dados de teste solicitada pelo administrador.
-delete from public.oficina_sessoes;
-delete from public.combustivel_motorista_cartoes;
-delete from public.oficina_mecanicos_acessos;
+-- Nenhuma limpeza automatica de dados de producao.
+-- Os cartões e acessos do motorista devem ser apagados apenas por uma operacao
+-- manual e filtrada, nunca por uma migracao genérica.
