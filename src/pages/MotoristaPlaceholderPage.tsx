@@ -62,24 +62,19 @@ export const MotoristaPlaceholderPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center p-6">
-      <div className="w-full max-w-md space-y-4">
-        <div className="text-center">
-          <p className="text-xs text-cyan-300 font-semibold uppercase tracking-wide">Frota Pro</p>
-          <h1 className="text-lg font-semibold mt-1">Meu Cartão</h1>
-        </div>
-
-        {loading && <p className="text-xs text-slate-400 text-center">A carregar cartão...</p>}
+    <div className="min-h-screen bg-[#071b2e] text-slate-100 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-10">
+      <div className="w-full max-w-[1100px] flex justify-center">
+        {loading && <p className="text-xs text-slate-300 text-center">A carregar cartão...</p>}
 
         {!loading && error && (
-          <div className="border border-rose-400/25 bg-rose-500/10 text-rose-200 rounded-lg p-3 text-xs flex gap-2 items-start">
+          <div className="max-w-md mx-auto border border-rose-400/25 bg-rose-500/10 text-rose-200 rounded-lg p-3 text-xs flex gap-2 items-start">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
         {!loading && !error && !cartao && (
-          <div className="border border-slate-800 rounded-2xl bg-slate-900 p-6 text-center">
+          <div className="max-w-md mx-auto border border-slate-800 rounded-2xl bg-slate-900 p-6 text-center">
             <p className="text-sm text-slate-300">Ainda não tens um cartão de abastecimento associado.</p>
             <p className="text-xs text-slate-500 mt-2">Contacta o administrador para o criar em Oficina &gt; Cartões de Abastecimento.</p>
           </div>
@@ -89,7 +84,7 @@ export const MotoristaPlaceholderPage: React.FC = () => {
           <>
             <FuelCard motoristaNome={cartao.motoristaNome} numeroCartao={cartao.numeroCartao} qrValue={cartao.qrValue} className="mx-auto" />
             {cartao.estado !== 'ativo' && (
-              <div className="border border-amber-400/25 bg-amber-500/10 text-amber-200 rounded-lg p-3 text-xs text-center">
+              <div className="max-w-md mx-auto mt-4 border border-amber-400/25 bg-amber-500/10 text-amber-200 rounded-lg p-3 text-xs text-center">
                 Cartão {cartao.estado === 'bloqueado' ? 'bloqueado' : 'suspenso'} — não pode ser utilizado para abastecimento.
               </div>
             )}

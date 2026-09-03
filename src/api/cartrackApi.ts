@@ -166,7 +166,7 @@ export const cartrackApi = {
   // Estado telemático em tempo real de todas as viaturas
   getVehiclesStatus: async (): Promise<CartrackVehicleStatusRaw[]> => {
     try {
-      const res = await callProxy<{ data?: CartrackVehicleStatusRaw[] }>('vehicles_status');
+      const res = await callProxy<{ data?: CartrackVehicleStatusRaw[] }>('vehicles_status', { limit: '1000' });
       const normalizedStatuses = (res.data || []).map(normalizeVehicleStatus);
       logVehiclesStatusShape(normalizedStatuses);
       return normalizedStatuses;

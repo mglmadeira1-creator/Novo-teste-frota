@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co');
+const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key');
 
 const invalidAnonKeyValues = new Set([
 	'',
@@ -28,4 +28,13 @@ export function getSupabaseConfigError(): string | null {
 	return null;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+let supabaseClient: any;
+
+try {
+	supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+} catch (error) {
+	console.error('[Supabase] Falha ao inicializar cliente', error);
+	supabaseClient = null;
+}
+
+export const supabase = supabaseClient;

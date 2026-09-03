@@ -18,7 +18,7 @@ serve(async (req) => {
     const vehicleId = url.searchParams.get("vehicle_id");
     const startDate = url.searchParams.get("start_date");
     const endDate = url.searchParams.get("end_date");
-    const limit = url.searchParams.get("limit") || "100";
+    const limit = url.searchParams.get("limit") || "1000";
 
     const username = Deno.env.get("CARTRACK_USERNAME");
     const password = Deno.env.get("CARTRACK_PASSWORD");

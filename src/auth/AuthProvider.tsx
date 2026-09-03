@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../api/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../api/supabaseClient';
 import { AppRole, AuthRoleInfo } from '../types/auth';
 
 interface AuthContextValue extends AuthRoleInfo {
@@ -84,17 +84,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let isMounted = true;
 
+    if (!supabase || !isSupabaseConfigured()) {
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     supabase.auth.getSession()
-      .then(({ data, error }) => {
+      .then((result: { data: { session: Session | null }; error: { message: string; status?: number; code?: string } | null }) => {
         if (!isMounted) {
           return;
         }
+
+        const { data, error } = result;
 
         if (error) {
           console.error('[Auth][Session] Falha ao obter sessão', {
             message: error.message,
             status: error.status,
-            code: (error as any).code
+            code: error.code
           });
         }
 
@@ -114,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_: string, nextSession: Session | null) => {
       setSession(nextSession || null);
       setUser(nextSession?.user || null);
       setLoading(false);
