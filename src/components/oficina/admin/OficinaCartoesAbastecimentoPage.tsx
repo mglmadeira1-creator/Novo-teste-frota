@@ -312,7 +312,7 @@ export const OficinaCartoesAbastecimentoPage: React.FC = () => {
 
         {novoCartaoPreview && (
           <div className="mt-5 flex flex-col sm:flex-row items-center gap-4 border border-cyan-400/20 bg-cyan-500/5 rounded-xl p-4">
-            <FuelCard motoristaNome={novoCartaoPreview.motorista_nome} numeroCartao={novoCartaoPreview.numero_cartao} className="max-w-xs" />
+            <FuelCard motoristaNome={novoCartaoPreview.motorista_nome} numeroCartao={novoCartaoPreview.numero_cartao} className="max-w-[560px]" />
             <div className="text-xs text-slate-300">
               <p>Cartão criado para <strong>{novoCartaoPreview.motorista_nome}</strong>.</p>
               <p className="mt-1 text-slate-400">N.º cartão: <span className="font-mono">{novoCartaoPreview.numero_cartao}</span></p>
