@@ -1,9 +1,11 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
+import { readMotoristaSession } from './motoristaSession';
 
 export const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session, loading } = useAuth();
+  const motoristaSession = readMotoristaSession();
 
   if (loading) {
     return (
@@ -18,6 +20,10 @@ export const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ child
 
   if (session) {
     return <Navigate to="/" replace />;
+  }
+
+  if (motoristaSession) {
+    return <Navigate to="/motorista/painel" replace />;
   }
 
   return <>{children}</>;

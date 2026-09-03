@@ -47,6 +47,7 @@ export const OficinaCartoesAbastecimentoPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [motoristaSelecionadoId, setMotoristaSelecionadoId] = useState('');
+  const [pinNovo, setPinNovo] = useState('');
   const [novoCartaoPreview, setNovoCartaoPreview] = useState<CartaoAbastecimento | null>(null);
 
   const [novoMotoristaDriverId, setNovoMotoristaDriverId] = useState('');
@@ -107,11 +108,17 @@ export const OficinaCartoesAbastecimentoPage: React.FC = () => {
       return;
     }
 
+    if (!/^\d{4,8}$/.test(pinNovo)) {
+      setError('Define um PIN numerico entre 4 e 8 digitos.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const result = await oficinaAdminService.createCartao(motoristaSelecionadoId);
+      const result = await oficinaAdminService.createCartao(motoristaSelecionadoId, pinNovo);
       setNovoCartaoPreview(result.item);
       setMotoristaSelecionadoId('');
+      setPinNovo('');
       await load();
     } catch (err) {
       console.error('[Oficina][Cartoes] Falha ao criar cartao', err);
@@ -241,7 +248,7 @@ export const OficinaCartoesAbastecimentoPage: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleCreateCartao} className="mt-4 grid md:grid-cols-[1fr_auto] gap-3 items-end">
+        <form onSubmit={handleCreateCartao} className="mt-4 grid md:grid-cols-[1fr_220px_auto] gap-3 items-end">
           <label className="block space-y-1">
             <span className="text-xs text-slate-400">Motorista</span>
             <select
@@ -254,6 +261,20 @@ export const OficinaCartoesAbastecimentoPage: React.FC = () => {
                 <option key={m.id} value={m.id}>{m.nome}</option>
               ))}
             </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-xs text-slate-400">PIN do cartão (4–8 dígitos)</span>
+            <input
+              required
+              inputMode="numeric"
+              type="password"
+              maxLength={8}
+              value={pinNovo}
+              onChange={(event) => setPinNovo(event.target.value.replace(/\D/g, '').slice(0, 8))}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm tracking-[0.25em] focus:outline-none focus:border-cyan-500"
+              placeholder="••••"
+            />
           </label>
 
           <button

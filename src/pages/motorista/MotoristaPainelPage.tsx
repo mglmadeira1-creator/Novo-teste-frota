@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import QRCode from 'react-qr-code';
-import { useAuth } from '../../auth/AuthProvider';
-import { supabase } from '../../api/supabaseClient';
 import { FuelCard } from '../../components/oficina/FuelCard';
+import { readMotoristaSession } from '../../auth/motoristaSession';
 
 interface MotoristaCartaoData {
   numeroCartao: string;
@@ -12,7 +11,6 @@ interface MotoristaCartaoData {
 }
 
 export const MotoristaPainelPage: React.FC = () => {
-  const { user, userName } = useAuth();
   const [loading, setLoading] = useState(true);
   const [cartao, setCartao] = useState<MotoristaCartaoData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,35 +21,17 @@ export const MotoristaPainelPage: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) {
-          setError('Sessão inválida.');
+        const motoristaSession = readMotoristaSession();
+        if (!motoristaSession?.numeroCartao) {
+          setError('Sessão do motorista inválida.');
           return;
         }
-
-        const { data, error: queryError } = await supabase
-          .from('combustivel_motorista_cartoes')
-          .select('numero_cartao, estado, qr_token_id, motorista:combustivel_motoristas(nome)')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (queryError) {
-          throw queryError;
-        }
-
-        if (!data) {
-          setCartao(null);
-          return;
-        }
-
-        const motorista = Array.isArray(data.motorista) ? data.motorista[0] : data.motorista;
 
         setCartao({
-          numeroCartao: data.numero_cartao,
-          estado: data.estado,
-          motoristaNome: motorista?.nome || userName || user?.email?.split('@')[0] || 'Motorista',
-          qrValue: `FPCARD:${data.qr_token_id}`,
+          numeroCartao: motoristaSession.numeroCartao,
+          estado: (motoristaSession.estado || 'ativo') as MotoristaCartaoData['estado'],
+          motoristaNome: motoristaSession.motoristaNome || 'Motorista',
+          qrValue: `FPCARD:${motoristaSession.qrTokenId}`,
         });
       } catch (err) {
         console.error('[Motorista][Painel] Falha ao carregar cartao', err);
@@ -62,7 +42,7 @@ export const MotoristaPainelPage: React.FC = () => {
     };
 
     load();
-  }, [user, userName]);
+  }, []);
 
   const isBlocked = cartao?.estado && cartao.estado !== 'ativo';
 

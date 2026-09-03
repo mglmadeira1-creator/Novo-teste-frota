@@ -106,10 +106,11 @@ export const oficinaAdminService = {
     return result.items || [];
   },
 
-  async createCartao(motoristaId: string): Promise<{ item: CartaoAbastecimento }> {
+  async createCartao(motoristaId: string, pin: string): Promise<{ item: CartaoAbastecimento }> {
     return await invokeOficinaAuth<{ item: CartaoAbastecimento }>({
       action: 'create_cartao',
-      motoristaId
+      motoristaId,
+      pin
     });
   },
 

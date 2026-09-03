@@ -135,9 +135,7 @@ export const AppRouter: React.FC = () => {
               <Route
                 path="/motorista/login"
                 element={(
-                  <PublicOnlyRoute>
-                    <MotoristaLoginPage />
-                  </PublicOnlyRoute>
+                  <MotoristaLoginPage />
                 )}
               />
 

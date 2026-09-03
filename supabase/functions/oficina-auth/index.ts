@@ -120,6 +120,67 @@ async function hashMechanicCode(code: string): Promise<{ lookupHash: string; sal
   };
 }
 
+async function hashCardPin(pin: string): Promise<{ salt: string; hash: string }> {
+  const salt = randomHex(16);
+  const hash = await sha256Hex(`${salt}:${pin}`);
+  return { salt, hash };
+}
+
+async function loginMotorista(reqBody: JsonRecord, supabase: ReturnType<typeof createClient>): Promise<Response> {
+  const numeroCartao = normalizeCardNumber(reqBody.numeroCartao);
+  const pin = normalizeText(reqBody.pin);
+
+  if (!numeroCartao || !/^\d{4,32}$/.test(numeroCartao) || !/^\d{4,8}$/.test(pin)) {
+    return jsonResponse({ error: "Numero de cartao ou PIN invalido." }, 400);
+  }
+
+  const formattedCardNumber = numeroCartao.match(/.{1,4}/g)?.join(" ") || numeroCartao;
+  const { data: cartao, error: cartaoError } = await supabase
+    .from("combustivel_motorista_cartoes")
+    .select("id, numero_cartao, qr_token_id, estado, pin_hash, pin_salt, motorista:combustivel_motoristas(id, nome)")
+    .eq("numero_cartao", formattedCardNumber)
+    .maybeSingle();
+
+  if (cartaoError) {
+    return jsonResponse({ error: cartaoError.message }, 500);
+  }
+
+  const motorista = Array.isArray(cartao?.motorista) ? cartao.motorista[0] : cartao?.motorista;
+  if (!cartao || !cartao.pin_hash || !cartao.pin_salt || !motorista) {
+    return jsonResponse({ error: "Cartao ou PIN invalido." }, 401);
+  }
+
+  const pinHash = await sha256Hex(`${cartao.pin_salt}:${pin}`);
+  if (!timingSafeEqual(pinHash, cartao.pin_hash) || cartao.estado !== "ativo") {
+    return jsonResponse({ error: cartao.estado === "ativo" ? "Cartao ou PIN invalido." : "Cartao bloqueado ou suspenso." }, 401);
+  }
+
+  const secret = randomHex(32);
+  const tokenHash = await sha256Hex(secret);
+  const expires = new Date(Date.now() + 12 * 60 * 60 * 1000);
+  const { data: session, error: sessionError } = await supabase
+    .from("motorista_sessoes")
+    .insert({ cartao_id: cartao.id, token_hash: tokenHash, expira_at: expires.toISOString() })
+    .select("id")
+    .single();
+
+  if (sessionError || !session) {
+    return jsonResponse({ error: sessionError?.message || "Falha ao criar sessao do motorista." }, 500);
+  }
+
+  return jsonResponse({
+    token: `${session.id}.${secret}`,
+    expiresAt: expires.toISOString(),
+    card: {
+      numeroCartao: cartao.numero_cartao,
+      motoristaId: motorista.id,
+      motoristaNome: motorista.nome,
+      qrTokenId: cartao.qr_token_id,
+      estado: cartao.estado
+    }
+  });
+}
+
 function getServiceClient() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY nao configurados.");
@@ -289,6 +350,10 @@ serve(async (req: Request) => {
 
     if (action === "login") {
       return await loginMechanic(body, supabase, req);
+    }
+
+    if (action === "login_motorista") {
+      return await loginMotorista(body, supabase);
     }
 
     const admin = await requireAdmin(req, supabase);
@@ -541,8 +606,13 @@ serve(async (req: Request) => {
 
     if (action === "create_cartao") {
       const motoristaId = normalizeText(body.motoristaId);
+      const pin = normalizeText(body.pin);
       if (!motoristaId) {
         return jsonResponse({ error: "Motorista obrigatorio." }, 400);
+      }
+
+      if (!/^\d{4,8}$/.test(pin)) {
+        return jsonResponse({ error: "PIN numerico entre 4 e 8 digitos obrigatorio." }, 400);
       }
 
       const { data: motorista, error: motoristaError } = await supabase
@@ -560,6 +630,7 @@ serve(async (req: Request) => {
       }
 
       const now = new Date().toISOString();
+      const pinData = await hashCardPin(pin);
       let lastError: string | null = null;
 
       for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -570,6 +641,8 @@ serve(async (req: Request) => {
           .insert({
             motorista_id: motoristaId,
             numero_cartao: numeroCartao,
+            pin_hash: pinData.hash,
+            pin_salt: pinData.salt,
             estado: "ativo",
             criado_por_user_id: admin.id,
             created_at: now,

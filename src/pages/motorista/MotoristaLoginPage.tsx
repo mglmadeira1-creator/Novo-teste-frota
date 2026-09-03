@@ -1,48 +1,71 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { CreditCard, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../auth/AuthProvider';
+import { supabase } from '../../api/supabaseClient';
+import { readMotoristaSession, writeMotoristaSession } from '../../auth/motoristaSession';
+
+function normalizeCardInput(value: string): string {
+  return value.replace(/\s+/g, '').replace(/[^0-9]/g, '');
+}
 
 export const MotoristaLoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { session } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [cardInput, setCardInput] = useState('');
+  const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
-    if (session) {
+    if (readMotoristaSession()) {
+      navigate('/motorista/painel', { replace: true });
+      return;
+    }
+
+    if (readMotoristaSession()) {
       navigate('/motorista/painel', { replace: true });
     }
-  }, [session, navigate]);
+  }, [navigate]);
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
 
-    if (!email || !password) {
-      setError('Preenche o email e a palavra-passe do motorista.');
+    const numeroCartao = normalizeCardInput(cardInput);
+    if (!numeroCartao || !/^\d{4,8}$/.test(pin)) {
+      setError('Introduz o número do cartão e um PIN de 4 a 8 dígitos.');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const { error: signInError } = await (await import('../../api/supabaseClient')).supabase.auth.signInWithPassword({
-        email,
-        password
+      const { data, error: lookupError } = await supabase.functions.invoke('oficina-auth', {
+        body: { action: 'login_motorista', numeroCartao, pin }
       });
 
-      if (signInError) {
-        throw signInError;
+      if (lookupError) {
+        throw lookupError;
       }
+
+      if (!data?.card || !data.token || !data.expiresAt) {
+        throw new Error('Cartão ou PIN inválido.');
+      }
+
+      writeMotoristaSession({
+        token: data.token,
+        expiresAt: data.expiresAt,
+        numeroCartao: data.card.numeroCartao,
+        motoristaId: data.card.motoristaId || null,
+        motoristaNome: data.card.motoristaNome || 'Motorista',
+        qrTokenId: data.card.qrTokenId || null,
+        estado: data.card.estado || 'ativo',
+        loggedAt: new Date().toISOString()
+      });
 
       navigate('/motorista/painel', { replace: true });
     } catch (err: any) {
       console.error('[Motorista][Login] Falha no login', err);
-      setError(err?.message || 'Não foi possível autenticar o motorista.');
+      setError(err?.message || 'Não foi possível validar este cartão.');
     } finally {
       setIsLoading(false);
     }
@@ -61,39 +84,31 @@ export const MotoristaLoginPage: React.FC = () => {
 
           <form onSubmit={onSubmit} className="p-6 space-y-4">
             <label className="block space-y-1">
-              <span className="text-xs text-slate-400">Email</span>
+              <span className="text-xs text-slate-400">N.º do cartão</span>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <CreditCard className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="motorista@dominio.com"
+                  type="text"
+                  inputMode="numeric"
+                  value={cardInput}
+                  onChange={(event) => setCardInput(event.target.value)}
+                  placeholder="1234 5678"
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
                 />
               </div>
             </label>
 
             <label className="block space-y-1">
-              <span className="text-xs text-slate-400">Palavra-passe</span>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Inserir palavra-passe"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-10 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((current) => !current)}
-                  className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-300"
-                  aria-label={showPassword ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <span className="text-xs text-slate-400">PIN do cartão</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={8}
+                value={pin}
+                onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="PIN de 4 a 8 dígitos"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm tracking-[0.25em] text-slate-100 focus:outline-none focus:border-cyan-500"
+              />
             </label>
 
             <button
