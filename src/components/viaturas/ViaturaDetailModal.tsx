@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ViaturaCompleta } from '../../types/viaturaCompleta';
 import { X, Info, MapPin, Flag, Gauge, Wrench, FileText, DollarSign, History, Save, CheckCircle } from 'lucide-react';
 import { viaturasService } from '../../services/viaturasService';
+import { cartrackApi } from '../../api/cartrackApi';
+import { CartrackTripRaw } from '../../types/cartrack';
 
 interface Props {
   viatura: ViaturaCompleta | null;
@@ -27,6 +29,31 @@ export const ViaturaDetailModal: React.FC<Props> = ({ viatura, onClose, onRefres
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [tripStartDate, setTripStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [tripEndDate, setTripEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [tripHour, setTripHour] = useState('todos');
+  const [trips, setTrips] = useState<CartrackTripRaw[]>([]);
+  const [selectedTrip, setSelectedTrip] = useState<CartrackTripRaw | null>(null);
+  const [isLoadingTrips, setIsLoadingTrips] = useState(false);
+
+  const loadTrips = async () => {
+    setIsLoadingTrips(true);
+    const result = await cartrackApi.getTrips(
+      viatura.registration,
+      `${tripStartDate}T00:00:00`,
+      `${tripEndDate}T23:59:59`
+    );
+    setTrips(result);
+    setSelectedTrip(null);
+    setIsLoadingTrips(false);
+  };
+
+  React.useEffect(() => {
+    if (activeTab !== 'trips') return;
+    loadTrips();
+  }, [activeTab, viatura.registration]);
+
+  const filteredTrips = trips.filter((trip) => tripHour === 'todos' || new Date(trip.start_timestamp).getHours() === Number(tripHour));
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,20 +273,66 @@ export const ViaturaDetailModal: React.FC<Props> = ({ viatura, onClose, onRefres
           )}
 
           {activeTab === 'trips' && (
-            <div className="space-y-3 text-xs text-slate-300">
-              <p className="text-slate-400">Histórico de viagens telemáticas fornecido diretamente pela Cartrack API.</p>
-              <div className="border border-slate-800 rounded-xl p-4 bg-slate-950/60 space-y-3">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                  <span className="font-semibold text-slate-200">Viagem #1 - Hoje</span>
-                  <span className="text-emerald-400 font-mono font-semibold">42.5 km</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div><span className="text-slate-400">Origem:</span> Garagem Central, Faro</div>
-                  <div><span className="text-slate-400">Destino:</span> Av. 5 de Outubro, Albufeira</div>
-                  <div><span className="text-slate-400">Duração:</span> 1h 00m</div>
-                  <div><span className="text-slate-400">Vel. Máxima:</span> 98 km/h</div>
-                </div>
+            <div className="space-y-4 text-xs text-slate-300">
+              <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <label className="space-y-1">
+                  <span className="block text-slate-400">Desde</span>
+                  <input type="date" value={tripStartDate} onChange={(event) => setTripStartDate(event.target.value)} className="rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs" />
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-slate-400">Até</span>
+                  <input type="date" value={tripEndDate} onChange={(event) => setTripEndDate(event.target.value)} className="rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs" />
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-slate-400">Hora de partida</span>
+                  <select value={tripHour} onChange={(event) => setTripHour(event.target.value)} className="rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs">
+                    <option value="todos">Todas as horas</option>
+                    {Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{String(hour).padStart(2, '0')}h</option>)}
+                  </select>
+                </label>
+                <button type="button" onClick={loadTrips} className="rounded-lg bg-sky-600 px-3 py-2 font-semibold text-white hover:bg-sky-500">
+                  {isLoadingTrips ? 'A carregar...' : 'Pesquisar viagens'}
+                </button>
               </div>
+
+              {isLoadingTrips && <p className="text-slate-400">A carregar viagens da Cartrack...</p>}
+              {!isLoadingTrips && filteredTrips.length === 0 && <p className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-slate-400">Não foram encontradas viagens nesse período/horário.</p>}
+              <div className="grid gap-2">
+                {filteredTrips.map((trip, index) => (
+                  <button
+                    key={trip.trip_id || `${trip.start_timestamp}-${index}`}
+                    type="button"
+                    onClick={() => setSelectedTrip(trip)}
+                    className={`w-full rounded-xl border p-4 text-left transition-colors ${selectedTrip === trip ? 'border-sky-500 bg-sky-500/10' : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-200">{new Date(trip.start_timestamp).toLocaleString('pt-PT')}</span>
+                      <span className="font-mono font-semibold text-emerald-400">{trip.distance_km?.toFixed(1) || '0.0'} km</span>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-[11px] sm:grid-cols-2">
+                      <span><b className="text-slate-400">Origem:</b> {trip.start_location || 'N/D'}</span>
+                      <span><b className="text-slate-400">Destino:</b> {trip.end_location || 'N/D'}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {selectedTrip && (
+                <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+                  <h4 className="font-semibold text-sky-300">Trajeto selecionado</h4>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                    <span><b className="block text-slate-400">Partida</b>{new Date(selectedTrip.start_timestamp).toLocaleString('pt-PT')}</span>
+                    <span><b className="block text-slate-400">Chegada</b>{new Date(selectedTrip.end_timestamp).toLocaleString('pt-PT')}</span>
+                    <span><b className="block text-slate-400">Duração</b>{selectedTrip.duration_seconds ? `${Math.round(selectedTrip.duration_seconds / 60)} min` : 'N/D'}</span>
+                    <span><b className="block text-slate-400">Vel. máxima</b>{selectedTrip.max_speed_kmh || 'N/D'} km/h</span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-3 text-[11px]">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" /> {selectedTrip.start_location || 'Origem'}
+                    <span className="h-px flex-1 bg-sky-500/50" />
+                    <span className="h-2 w-2 rounded-full bg-rose-400" /> {selectedTrip.end_location || 'Destino'}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

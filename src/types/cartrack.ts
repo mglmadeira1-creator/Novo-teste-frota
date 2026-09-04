@@ -80,4 +80,6 @@ export interface CartrackTripRaw {
   distance_km?: number;
   duration_seconds?: number;
   max_speed_kmh?: number;
+  points?: Array<{ latitude: number; longitude: number; timestamp?: string }>;
+  route?: Array<{ latitude: number; longitude: number; timestamp?: string }>;
 }

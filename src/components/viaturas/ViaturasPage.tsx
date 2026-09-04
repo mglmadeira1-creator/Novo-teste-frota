@@ -3,11 +3,13 @@ import { ViaturaCompleta } from '../../types/viaturaCompleta';
 import { viaturasService } from '../../services/viaturasService';
 import { ViaturasListTable } from '../layout/ViaturasListTable';
 import { ViaturaDetailModal } from './ViaturaDetailModal';
+import { LiveVehicleMap } from './LiveVehicleMap';
 import { Truck, Search, Filter, ShieldCheck, Activity, AlertTriangle, Radio } from 'lucide-react';
 
 export const ViaturasPage: React.FC = () => {
   const [viaturas, setViaturas] = useState<ViaturaCompleta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [selectedViatura, setSelectedViatura] = useState<ViaturaCompleta | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,11 +19,14 @@ export const ViaturasPage: React.FC = () => {
     setIsLoading(true);
     const data = await viaturasService.getViaturas();
     setViaturas(data);
+    setLastUpdated(new Date().toISOString());
     setIsLoading(false);
   };
 
   useEffect(() => {
     loadData();
+    const interval = window.setInterval(loadData, 30000);
+    return () => window.clearInterval(interval);
   }, []);
 
   // Métricas
@@ -123,6 +128,13 @@ export const ViaturasPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <LiveVehicleMap
+        viaturas={viaturasFiltradas}
+        onSelectViatura={setSelectedViatura}
+        isLoading={isLoading}
+        lastUpdated={lastUpdated}
+      />
 
       {/* Main Table */}
       {isLoading ? (
