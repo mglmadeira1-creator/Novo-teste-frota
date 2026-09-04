@@ -4,6 +4,7 @@ import { X, Info, MapPin, Flag, Gauge, Wrench, FileText, DollarSign, History, Sa
 import { viaturasService } from '../../services/viaturasService';
 import { cartrackApi } from '../../api/cartrackApi';
 import { CartrackTripRaw } from '../../types/cartrack';
+import { TripRouteMap } from './TripRouteMap';
 
 interface Props {
   viatura: ViaturaCompleta | null;
@@ -342,6 +343,7 @@ export const ViaturaDetailModal: React.FC<Props> = ({ viatura, onClose, onRefres
                     <span className="h-px flex-1 bg-sky-500/50" />
                     <span className="h-2 w-2 rounded-full bg-rose-400" /> {selectedTrip.end_location || 'Destino'}
                   </div>
+                  <TripRouteMap points={selectedTrip.points || selectedTrip.route || selectedTrip.route_points || []} />
                 </div>
               )}
             </div>

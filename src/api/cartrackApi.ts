@@ -1,4 +1,4 @@
-import { CartrackVehicleRaw, CartrackVehicleStatusRaw, CartrackTripRaw } from '../types/cartrack';
+import { CartrackVehicleRaw, CartrackVehicleStatusRaw, CartrackTripPoint, CartrackTripRaw } from '../types/cartrack';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -179,15 +179,30 @@ function extractCollection<T>(response: unknown, keys: string[]): T[] {
 
 function normalizeTrip(trip: CartrackTripRaw): CartrackTripRaw {
   const raw = trip as CartrackTripRaw & Record<string, unknown>;
+  const rawPoints = raw.points || raw.route || raw.route_points || raw.locations || raw.track;
+  const points: CartrackTripPoint[] | undefined = Array.isArray(rawPoints)
+    ? rawPoints.reduce<CartrackTripPoint[]>((result, point) => {
+        const item = point as Record<string, unknown>;
+        const latitude = Number(item.latitude ?? item.lat);
+        const longitude = Number(item.longitude ?? item.lng ?? item.lon);
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          result.push({ latitude, longitude, timestamp: String(item.timestamp || item.event_ts || '') || undefined });
+        }
+        return result;
+      }, [])
+    : undefined;
+  const distance = Number(raw.distance_km ?? raw.distance_in_kms ?? raw.distance);
+  const distanceMeters = Number(raw.distance_meters ?? raw.distance_in_meters);
   return {
     ...trip,
     start_timestamp: String(raw.start_timestamp || raw.start_time || raw.started_at || ''),
     end_timestamp: String(raw.end_timestamp || raw.end_time || raw.ended_at || ''),
     start_location: String(raw.start_location || raw.start_address || ''),
     end_location: String(raw.end_location || raw.end_address || ''),
-    distance_km: typeof raw.distance_km === 'number' ? raw.distance_km : typeof raw.distance === 'number' ? raw.distance : undefined,
-    duration_seconds: typeof raw.duration_seconds === 'number' ? raw.duration_seconds : typeof raw.duration === 'number' ? raw.duration : undefined,
-    max_speed_kmh: typeof raw.max_speed_kmh === 'number' ? raw.max_speed_kmh : typeof raw.max_speed === 'number' ? raw.max_speed : undefined
+    distance_km: Number.isFinite(distance) ? distance : Number.isFinite(distanceMeters) ? distanceMeters / 1000 : undefined,
+    duration_seconds: Number(raw.duration_seconds ?? raw.duration_in_seconds ?? raw.duration) || undefined,
+    max_speed_kmh: Number(raw.max_speed_kmh ?? raw.max_speed) || undefined,
+    points
   };
 }
 
