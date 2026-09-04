@@ -46,9 +46,21 @@ export const MotoristaLoginPage: React.FC = () => {
       const payload = (data ?? {}) as Record<string, unknown>;
 
       if (lookupError) {
-        const message = typeof payload.error === 'string'
-          ? payload.error
-          : (lookupError as Error)?.message || 'Não foi possível validar este cartão.';
+        let functionMessage = typeof payload.error === 'string' ? payload.error : '';
+
+        if (!functionMessage) {
+          const response = (lookupError as { context?: Response }).context;
+          if (response) {
+            try {
+              const responsePayload = await response.clone().json() as Record<string, unknown>;
+              functionMessage = typeof responsePayload.error === 'string' ? responsePayload.error : '';
+            } catch {
+              // A resposta pode não conter JSON quando a função nem chega a iniciar.
+            }
+          }
+        }
+
+        const message = functionMessage || (lookupError as Error)?.message || 'Não foi possível validar este cartão.';
         throw new Error(message);
       }
 
