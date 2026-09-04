@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { ViaturasPage } from './components/viaturas/ViaturasPage';
+import { GpsMapPage } from './components/viaturas/GpsMapPage';
 import { CombustiveisPage } from './components/combustiveis/CombustiveisPage';
 import { OficinaAcessosMecanicosPage } from './components/oficina/admin/OficinaAcessosMecanicosPage';
 import { OficinaCartoesAbastecimentoPage } from './components/oficina/admin/OficinaCartoesAbastecimentoPage';
@@ -35,6 +36,15 @@ export const App: React.FC<AppProps> = ({ userName, userEmail, userRole, onLogou
         statusSubtitle: 'Análise operacional de combustível',
         refreshLabel: 'Atualizar módulo',
         initials: 'CB'
+      }
+    : activeModule === 'gps'
+    ? {
+        title: 'GPS / Mapa Live',
+        subtitle: 'Posição em tempo real e histórico de trajetos da frota',
+        statusTitle: 'Telemática Ativa',
+        statusSubtitle: 'Atualização automática Cartrack',
+        refreshLabel: 'Atualizar GPS',
+        initials: 'GPS'
       }
     : activeModule === 'oficina'
     ? {
@@ -78,6 +88,7 @@ export const App: React.FC<AppProps> = ({ userName, userEmail, userRole, onLogou
         />
         <main className="flex-1 p-6">
           {activeModule === 'viaturas' && <ViaturasPage />}
+          {activeModule === 'gps' && <GpsMapPage />}
           {activeModule === 'combustiveis' && <CombustiveisPage />}
           {activeModule === 'oficina' && userRole === 'administrador' && (
             <div className="space-y-4">

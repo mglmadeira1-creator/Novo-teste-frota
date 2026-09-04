@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { Truck } from 'lucide-react';
 import { ViaturaCompleta } from '../../types/viaturaCompleta';
 
 interface LiveVehicleMapProps {
@@ -18,11 +20,13 @@ function markerColor(viatura: ViaturaCompleta): string {
 }
 
 function markerIcon(viatura: ViaturaCompleta): L.DivIcon {
+  const color = markerColor(viatura);
+
   return L.divIcon({
     className: 'live-vehicle-marker',
-    html: `<span style="--marker-color:${markerColor(viatura)}"><b>${viatura.registration}</b></span>`,
-    iconSize: [92, 34],
-    iconAnchor: [46, 17]
+    html: `<span aria-label="${viatura.registration}" title="${viatura.registration}" style="--marker-color:${color}">${renderToStaticMarkup(<Truck size={22} strokeWidth={2.5} />)}</span>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19]
   });
 }
 

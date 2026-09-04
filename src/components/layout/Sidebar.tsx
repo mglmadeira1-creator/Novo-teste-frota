@@ -28,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'motoristas', label: 'Motoristas', icon: Users, badge: 'Em breve' },
     { id: 'manutencao', label: 'Manutenção', icon: Wrench, badge: 'Em breve' },
     { id: 'alertas', label: 'Alertas', icon: Bell, badge: 'Em breve' },
-    { id: 'gps', label: 'GPS / Mapa Live', icon: MapPin, badge: 'Em breve' },
+    { id: 'gps', label: 'GPS / Mapa Live', icon: MapPin },
     { id: 'performance', label: 'Performance', icon: Gauge, badge: 'Em breve' },
   ];
 
