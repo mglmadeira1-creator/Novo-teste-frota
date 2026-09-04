@@ -86,8 +86,8 @@ export const ViaturaDetailModal: React.FC<Props> = ({ viatura, onClose, onRefres
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[1000] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="relative z-[1001] bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
         
         {/* Header Modal */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">

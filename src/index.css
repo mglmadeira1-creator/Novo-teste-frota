@@ -27,6 +27,10 @@
   box-shadow: 0 3px 10px rgb(2 6 23 / 45%);
 }
 
+.leaflet-container {
+  z-index: 0;
+}
+
 @media (max-width: 639px) {
   .motorista-card-viewport {
     position: fixed;

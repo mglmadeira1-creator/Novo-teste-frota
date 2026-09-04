@@ -101,7 +101,7 @@ export const LiveVehicleMap: React.FC<LiveVehicleMapProps> = ({
           {isLoading ? 'A atualizar...' : lastUpdated ? `Atualizado ${new Date(lastUpdated).toLocaleTimeString('pt-PT')}` : 'A aguardar dados'}
         </span>
       </div>
-      <div ref={mapContainerRef} className="h-[360px] w-full bg-slate-950 sm:h-[440px]" />
+      <div ref={mapContainerRef} className="h-[calc(100vh-220px)] min-h-[520px] w-full bg-slate-950 sm:h-[calc(100vh-190px)]" />
     </section>
   );
 };
