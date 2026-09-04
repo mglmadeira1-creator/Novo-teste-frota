@@ -201,30 +201,30 @@ export const OficinaTerminalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-900/70 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(8,145,178,0.12),transparent_34%),#020617] text-slate-100">
+      <header className="sticky top-0 z-20 border-b border-slate-800/90 bg-slate-950/90 shadow-lg shadow-slate-950/20 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
-            <div className="inline-flex items-center gap-2 text-cyan-300 text-xs font-semibold uppercase tracking-wide">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">
               <Wrench className="w-4 h-4" />
               Frota Pro · Oficina
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="mt-1 text-sm text-slate-300">
               Mecânico: <span className="text-slate-200">{mecanico?.nome || 'N/D'}</span> | Terminal: <span className="text-slate-200">{terminal?.nome || 'N/D'}</span>
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex w-full gap-2 sm:w-auto">
             <button
               onClick={refreshRecentes}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 text-sm hover:bg-slate-700 sm:flex-none"
             >
               <RefreshCcw className="w-3.5 h-3.5" />
               Atualizar
             </button>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs bg-rose-600/80 hover:bg-rose-500 border border-rose-400/20"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-rose-400/20 bg-rose-600/80 px-4 text-sm hover:bg-rose-500 sm:flex-none"
             >
               <LogOut className="w-3.5 h-3.5" />
               Trocar mecânico
@@ -233,24 +233,31 @@ export const OficinaTerminalPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 grid lg:grid-cols-[1.1fr_0.9fr] gap-4">
-        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6">
+      <main className="mx-auto grid max-w-7xl gap-5 p-3 sm:p-5 lg:p-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/95 p-5 shadow-xl shadow-slate-950/20 sm:p-7">
           {error && (
-            <div className="mb-4 text-xs text-rose-200 bg-rose-500/15 border border-rose-500/25 rounded-lg px-3 py-2">
+            <div className="mb-5 rounded-xl border border-rose-500/25 bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
               {error}
             </div>
           )}
 
           {step === 'identificar' && (
             <form onSubmit={handleIdentificar} className="space-y-4">
-              <h2 className="text-sm font-semibold">Passo 1 — Identificar motorista/cartão</h2>
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Passo 1 de 3</p>
+                  <h2 className="mt-1 text-xl font-semibold text-slate-100">Identificar cartão</h2>
+                  <p className="mt-1 text-sm text-slate-400">Leia o QR Code ou introduza o número do cartão.</p>
+                </div>
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200">Entrada</span>
+              </div>
               <label className="block space-y-1">
                 <span className="text-xs text-slate-400">Número do cartão ou código QR</span>
                 <input
                   autoFocus
                   value={cartaoInput}
                   onChange={(event) => setCartaoInput(event.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-3 text-lg font-mono tracking-wider focus:outline-none focus:border-cyan-500"
+                  className="min-h-14 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-lg font-mono tracking-wider focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
                   placeholder="1234 5678 9012 3456"
                 />
               </label>
@@ -266,7 +273,7 @@ export const OficinaTerminalPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60"
+                className="min-h-14 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-base font-semibold shadow-lg shadow-cyan-950/30 hover:bg-cyan-500 disabled:opacity-60"
               >
                 {isSubmitting ? 'A identificar...' : 'Identificar cartão'}
               </button>
@@ -275,7 +282,10 @@ export const OficinaTerminalPage: React.FC = () => {
 
           {step === 'viatura' && resolved && (
             <div className="space-y-4">
-              <h2 className="text-sm font-semibold">Passo 2 — Selecionar viatura</h2>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Passo 2 de 3</p>
+                <h2 className="mt-1 text-xl font-semibold">Selecionar viatura</h2>
+              </div>
 
               <div className="border border-emerald-400/20 bg-emerald-500/10 rounded-lg p-3 text-xs text-emerald-200">
                 <p className="font-semibold">MOTORISTA: {resolved.motorista.nome}</p>
@@ -286,17 +296,17 @@ export const OficinaTerminalPage: React.FC = () => {
               <input
                 value={buscaViatura}
                 onChange={(event) => setBuscaViatura(event.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                className="min-h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-base focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
                 placeholder="Pesquisar por matrícula..."
               />
 
-              <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+              <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
                 {viaturasFiltradas.map((v) => (
                   <button
                     key={v.cartrack_vehicle_id}
                     type="button"
                     onClick={() => handleSelecionarViatura(v.cartrack_vehicle_id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm ${selectedVehicleId === v.cartrack_vehicle_id ? 'border-cyan-500 bg-cyan-500/10 text-cyan-100' : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'}`}
+                    className={`min-h-14 w-full rounded-xl border px-4 text-left text-base ${selectedVehicleId === v.cartrack_vehicle_id ? 'border-cyan-500 bg-cyan-500/10 text-cyan-100' : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'}`}
                   >
                     {v.cartrack_registration}
                   </button>
@@ -307,13 +317,13 @@ export const OficinaTerminalPage: React.FC = () => {
               </div>
 
               <div className="flex gap-2">
-                <button type="button" onClick={resetWizard} className="px-4 py-2.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700">
+                <button type="button" onClick={resetWizard} className="min-h-12 rounded-xl bg-slate-800 px-5 text-sm hover:bg-slate-700">
                   Cancelar
                 </button>
                 <button
                   type="button"
                   onClick={handleAvancarParaAbastecimento}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-cyan-600 hover:bg-cyan-500"
+                  className="min-h-12 flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-base font-semibold hover:bg-cyan-500"
                 >
                   Continuar
                 </button>
@@ -323,7 +333,10 @@ export const OficinaTerminalPage: React.FC = () => {
 
           {step === 'abastecimento' && resolved && selectedVehicle && (
             <form onSubmit={handleSubmitAbastecimento} className="space-y-4">
-              <h2 className="text-sm font-semibold">Passo 3 — Abastecimento</h2>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Passo 3 de 3</p>
+                <h2 className="mt-1 text-xl font-semibold">Registar abastecimento</h2>
+              </div>
 
               <div className="grid sm:grid-cols-2 gap-2 text-xs text-slate-300">
                 <p>Motorista<br /><span className="text-slate-100 font-semibold">{resolved.motorista.nome}</span></p>
@@ -337,7 +350,7 @@ export const OficinaTerminalPage: React.FC = () => {
                   <select
                     value={fuelType}
                     onChange={(event) => setFuelType(event.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                    className="min-h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-base focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
                   >
                     {fuelOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
@@ -350,7 +363,7 @@ export const OficinaTerminalPage: React.FC = () => {
                   <input
                     value={litros}
                     onChange={(event) => setLitros(event.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                    className="min-h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-base focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
                     placeholder="45,20"
                   />
                 </label>
@@ -360,20 +373,20 @@ export const OficinaTerminalPage: React.FC = () => {
                   <input
                     value={quilometragemKm}
                     onChange={(event) => setQuilometragemKm(event.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                    className="min-h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-base focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
                     placeholder="182450"
                   />
                 </label>
               </div>
 
               <div className="flex gap-2">
-                <button type="button" onClick={() => setStep('viatura')} className="px-4 py-2.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700">
+                <button type="button" onClick={() => setStep('viatura')} className="min-h-12 rounded-xl bg-slate-800 px-5 text-sm hover:bg-slate-700">
                   Voltar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60"
+                  className="min-h-12 flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-base font-semibold shadow-lg shadow-emerald-950/30 hover:bg-emerald-500 disabled:opacity-60"
                 >
                   <ShieldCheck className="w-4 h-4" />
                   {isSubmitting ? 'A registar...' : 'Registar abastecimento'}
@@ -408,13 +421,19 @@ export const OficinaTerminalPage: React.FC = () => {
           )}
         </section>
 
-        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5">
-          <h2 className="text-sm font-semibold mb-4">Operações recentes do terminal</h2>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/95 p-5 shadow-xl shadow-slate-950/20 sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Atividade</p>
+              <h2 className="mt-1 text-lg font-semibold">Operações recentes</h2>
+            </div>
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">Últimas 20</span>
+          </div>
 
-          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+          <div className="max-h-[calc(100vh-220px)] space-y-3 overflow-y-auto pr-1">
             {recentes.length === 0 && <div className="text-xs text-slate-400">Sem operações registadas.</div>}
             {recentes.map((item) => (
-              <article key={item.id} className="border border-slate-800 rounded-lg p-3 bg-slate-950/50">
+              <article key={item.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition-colors hover:border-slate-700">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-cyan-300 font-semibold">{item.registration}</span>
                   <span className="text-[11px] text-slate-400">{formatDateTime(item.operacao_ts)}</span>
