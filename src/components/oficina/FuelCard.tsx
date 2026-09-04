@@ -15,7 +15,7 @@ export const FuelCard: React.FC<FuelCardProps> = ({ motoristaNome, numeroCartao,
         <img
           src={cardImage}
           alt="Cartão de abastecimento AlgarTempo"
-          className="absolute inset-0 block h-full w-full object-fill"
+          className="absolute inset-0 block h-full w-full object-fill brightness-110 contrast-105"
           draggable={false}
         />
 
