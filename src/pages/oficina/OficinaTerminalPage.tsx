@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Camera, CheckCircle2, LogOut, RefreshCcw, ShieldCheck, Wrench } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, LogOut, RefreshCcw, ShieldCheck, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOficinaSession } from '../../oficina/OficinaSessionProvider';
 import { oficinaTerminalService } from '../../services/oficinaTerminalService';
 import { CartaoResolveResult, OficinaAbastecimentoConfirmado, OficinaOperacaoRecente, OficinaViaturaItem } from '../../types/oficina';
-import { QRCodeScanner } from '../../components/oficina/QRCodeScanner';
 
 const fuelOptions = [
   { value: 'gasoleo', label: 'Gasóleo' },
@@ -48,7 +47,6 @@ export const OficinaTerminalPage: React.FC = () => {
 
   const [cartaoInput, setCartaoInput] = useState('');
   const [pinInput, setPinInput] = useState('');
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [resolved, setResolved] = useState<CartaoResolveResult | null>(null);
 
   const [viaturas, setViaturas] = useState<OficinaViaturaItem[]>([]);
@@ -100,7 +98,6 @@ export const OficinaTerminalPage: React.FC = () => {
     setStep('identificar');
     setCartaoInput('');
     setPinInput('');
-    setIsScannerOpen(false);
     setResolved(null);
     setBlockedInfo(null);
     setViaturas([]);
@@ -149,12 +146,6 @@ export const OficinaTerminalPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-  const handleQrScan = useCallback((value: string) => {
-    setCartaoInput(value);
-    setIsScannerOpen(false);
-    setError(null);
-  }, []);
 
   const handleSelecionarViatura = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
@@ -260,30 +251,21 @@ export const OficinaTerminalPage: React.FC = () => {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Passo 1 de 3</p>
                   <h2 className="mt-1 text-xl font-semibold text-slate-100">Identificar cartão</h2>
-                  <p className="mt-1 text-sm text-slate-400">Leia o QR Code e confirme com o PIN do cartão.</p>
+                  <p className="mt-1 text-sm text-slate-400">Introduza o número do cartão e confirme com o PIN.</p>
                 </div>
                 <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200">Entrada</span>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <label className="block flex-1 space-y-1">
-                <span className="text-xs text-slate-400">QR Code do cartão</span>
+                <span className="text-xs text-slate-400">Número do cartão</span>
                 <input
                   autoFocus
                   value={cartaoInput}
-                  readOnly
                   onChange={(event) => setCartaoInput(event.target.value)}
-                  className="min-h-14 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-lg font-mono tracking-wider text-cyan-200 focus:outline-none"
-                  placeholder="Leia o QR Code no cartão"
+                  className="min-h-14 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-lg font-mono tracking-wider focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
+                  placeholder="1234 5678 9012 3456"
                 />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsScannerOpen((current) => !current)}
-                  className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-5 text-base font-semibold text-cyan-200 hover:bg-cyan-400/20"
-                >
-                  <Camera className="h-5 w-5" />
-                  {isScannerOpen ? 'Fechar leitor' : 'Ler QR Code'}
-                </button>
               </div>
 
               <label className="block space-y-1">
@@ -298,8 +280,6 @@ export const OficinaTerminalPage: React.FC = () => {
                   placeholder="PIN de 4 a 8 dígitos"
                 />
               </label>
-
-              {isScannerOpen && <QRCodeScanner onScan={handleQrScan} onClose={() => setIsScannerOpen(false)} />}
 
               {blockedInfo && (
                 <div className="border border-amber-400/25 bg-amber-500/10 rounded-lg p-3 text-xs text-amber-200">
