@@ -49,9 +49,10 @@ serve(async (req) => {
       if (endDate) queryParams.set("end_timestamp", endDate);
     } else if (action === "trips") {
       targetEndpoint = "/trips";
-      if (registration) queryParams.set("registration", registration);
-      if (startDate) queryParams.set("filter[start_timestamp]", startDate);
-      if (endDate) queryParams.set("filter[end_timestamp]", endDate);
+      if (vehicleId) queryParams.set("vehicle_id", vehicleId);
+      else if (registration) queryParams.set("registration", registration);
+      if (startDate) queryParams.set("start_timestamp", startDate.slice(0, 10));
+      if (endDate) queryParams.set("end_timestamp", endDate.slice(0, 10));
     } else {
       if (registration) queryParams.set("registration", registration);
     }
@@ -71,7 +72,7 @@ serve(async (req) => {
       const errText = await cartrackRes.text();
       console.error(`[CartrackProxy Error ${cartrackRes.status}]`, errText);
       return new Response(
-        JSON.stringify({ error: `Erro na comunicação com Cartrack (${cartrackRes.status})` }),
+        JSON.stringify({ error: `Erro na comunicação com Cartrack (${cartrackRes.status})`, details: errText.slice(0, 500) }),
         { status: cartrackRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

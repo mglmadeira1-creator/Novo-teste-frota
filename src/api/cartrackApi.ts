@@ -141,7 +141,14 @@ async function callProxy<T>(action: string, params: Record<string, string> = {})
     });
 
     if (!res.ok) {
-      throw new Error(`Erro HTTP ${res.status} ao chamar Cartrack Proxy`);
+      let detail = '';
+      try {
+        const body = await res.json() as { error?: string; details?: string };
+        detail = body.details || body.error || '';
+      } catch {
+        detail = await res.text();
+      }
+      throw new Error(detail || `Erro HTTP ${res.status} ao chamar Cartrack Proxy`);
     }
 
     return await res.json() as T;
@@ -210,8 +217,8 @@ export const cartrackApi = {
   },
 
   // Histórico de viagens de uma viatura
-  getTrips: async (registration: string, startDate?: string, endDate?: string): Promise<CartrackTripRaw[]> => {
-    const params: Record<string, string> = { registration };
+  getTrips: async (registration: string, startDate?: string, endDate?: string, vehicleId?: string): Promise<CartrackTripRaw[]> => {
+    const params: Record<string, string> = vehicleId ? { vehicle_id: vehicleId } : { registration };
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
     const response = await callProxy<unknown>('trips', params);

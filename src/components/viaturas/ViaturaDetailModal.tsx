@@ -43,8 +43,9 @@ export const ViaturaDetailModal: React.FC<Props> = ({ viatura, onClose, onRefres
     try {
       const result = await cartrackApi.getTrips(
         viatura.registration,
-        `${tripStartDate}T00:00:00`,
-        `${tripEndDate}T23:59:59`
+        tripStartDate,
+        tripEndDate,
+        viatura.cartrack_vehicle_id
       );
       setTrips(result);
       setSelectedTrip(null);
