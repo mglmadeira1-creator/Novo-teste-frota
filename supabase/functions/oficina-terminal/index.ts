@@ -51,6 +51,23 @@ function formatCardNumber(digitsOnly: string): string {
   return (digitsOnly.match(/.{1,4}/g) || [digitsOnly]).join(" ").trim();
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  const max = Math.max(aBytes.length, bBytes.length);
+  let diff = aBytes.length ^ bBytes.length;
+  for (let i = 0; i < max; i += 1) {
+    diff |= (i < aBytes.length ? aBytes[i] : 0) ^ (i < bBytes.length ? bBytes[i] : 0);
+  }
+  return diff === 0;
+}
+
 interface CartrackVeiculoResumo {
   cartrack_vehicle_id: string;
   cartrack_registration: string;
@@ -344,14 +361,19 @@ serve(async (req: Request) => {
       const qrRaw = normalizeText(body.qrCode);
       const tokenId = qrRaw ? extractUuidFromQr(qrRaw) : null;
       const numeroCartao = normalizeCardNumber(body.numeroCartao);
+      const pin = normalizeText(body.pin);
 
       if (!tokenId && !numeroCartao) {
         return jsonResponse({ error: "Le o QR Code ou introduz o numero do cartao." }, 400);
       }
 
+      if (!/^\d{4,8}$/.test(pin)) {
+        return jsonResponse({ error: "PIN numerico entre 4 e 8 digitos obrigatorio." }, 400);
+      }
+
       const cardQuery = supabase
         .from("combustivel_motorista_cartoes")
-        .select("id, motorista_id, estado, qr_token_id, numero_cartao, motorista:combustivel_motoristas(id, external_driver_id, nome, acesso_viaturas)");
+        .select("id, motorista_id, estado, qr_token_id, numero_cartao, pin_hash, pin_salt, motorista:combustivel_motoristas(id, external_driver_id, nome, acesso_viaturas)");
 
       const { data: card, error: cardError } = tokenId
         ? await cardQuery.eq("qr_token_id", tokenId).maybeSingle()
@@ -363,6 +385,13 @@ serve(async (req: Request) => {
 
       if (!card) {
         return jsonResponse({ error: "Cartao nao encontrado." }, 404);
+      }
+
+      const pinHash = card.pin_hash && card.pin_salt
+        ? await sha256Hex(`${card.pin_salt}:${pin}`)
+        : "";
+      if (!card.pin_hash || !card.pin_salt || !timingSafeEqual(pinHash, card.pin_hash)) {
+        return jsonResponse({ error: "PIN do cartao invalido." }, 401);
       }
 
       const motorista = Array.isArray(card.motorista) ? card.motorista[0] : card.motorista;

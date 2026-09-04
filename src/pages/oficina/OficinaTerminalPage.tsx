@@ -47,6 +47,7 @@ export const OficinaTerminalPage: React.FC = () => {
   const [blockedInfo, setBlockedInfo] = useState<{ estado: string; motoristaNome: string } | null>(null);
 
   const [cartaoInput, setCartaoInput] = useState('');
+  const [pinInput, setPinInput] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [resolved, setResolved] = useState<CartaoResolveResult | null>(null);
 
@@ -98,6 +99,7 @@ export const OficinaTerminalPage: React.FC = () => {
   const resetWizard = () => {
     setStep('identificar');
     setCartaoInput('');
+    setPinInput('');
     setIsScannerOpen(false);
     setResolved(null);
     setBlockedInfo(null);
@@ -114,8 +116,8 @@ export const OficinaTerminalPage: React.FC = () => {
   const handleIdentificar = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!token || !cartaoInput.trim()) {
-      setError('Le o QR Code ou introduz o numero do cartao.');
+    if (!token || !cartaoInput.trim() || !pinInput.trim()) {
+      setError('Leia o QR Code e introduza o PIN do cartão.');
       return;
     }
 
@@ -125,8 +127,8 @@ export const OficinaTerminalPage: React.FC = () => {
 
     try {
       const input = looksLikeQr(cartaoInput)
-        ? { qrCode: cartaoInput.trim() }
-        : { numeroCartao: cartaoInput.trim() };
+        ? { qrCode: cartaoInput.trim(), pin: pinInput.trim() }
+        : { numeroCartao: cartaoInput.trim(), pin: pinInput.trim() };
 
       const result = await oficinaTerminalService.resolveCartao(token, input);
       setResolved(result);
@@ -256,19 +258,19 @@ export const OficinaTerminalPage: React.FC = () => {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Passo 1 de 3</p>
                   <h2 className="mt-1 text-xl font-semibold text-slate-100">Identificar cartão</h2>
-                  <p className="mt-1 text-sm text-slate-400">Leia o QR Code ou introduza o número do cartão.</p>
+                  <p className="mt-1 text-sm text-slate-400">Leia o QR Code e confirme com o PIN do cartão.</p>
                 </div>
                 <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200">Entrada</span>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <label className="block flex-1 space-y-1">
-                <span className="text-xs text-slate-400">Número do cartão ou código QR</span>
+                <span className="text-xs text-slate-400">QR Code do cartão</span>
                 <input
                   autoFocus
                   value={cartaoInput}
                   onChange={(event) => setCartaoInput(event.target.value)}
                   className="min-h-14 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-lg font-mono tracking-wider focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
-                  placeholder="1234 5678 9012 3456"
+                  placeholder="Leia o QR Code ou introduza o número"
                 />
                 </label>
                 <button
@@ -280,6 +282,19 @@ export const OficinaTerminalPage: React.FC = () => {
                   {isScannerOpen ? 'Fechar leitor' : 'Ler QR Code'}
                 </button>
               </div>
+
+              <label className="block space-y-1">
+                <span className="text-xs text-slate-400">PIN do cartão</span>
+                <input
+                  inputMode="numeric"
+                  type="password"
+                  maxLength={8}
+                  value={pinInput}
+                  onChange={(event) => setPinInput(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                  className="min-h-14 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-lg tracking-[0.35em] focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
+                  placeholder="PIN de 4 a 8 dígitos"
+                />
+              </label>
 
               {isScannerOpen && <QRCodeScanner onScan={handleQrScan} onClose={() => setIsScannerOpen(false)} />}
 

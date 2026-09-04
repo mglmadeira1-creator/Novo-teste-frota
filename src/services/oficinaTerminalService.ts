@@ -115,7 +115,7 @@ export const oficinaTerminalService = {
     }, sessionToken);
   },
 
-  async resolveCartao(sessionToken: string, input: { numeroCartao?: string; qrCode?: string }): Promise<CartaoResolveResult> {
+  async resolveCartao(sessionToken: string, input: { numeroCartao?: string; qrCode?: string; pin: string }): Promise<CartaoResolveResult> {
     try {
       return await invokeOficinaTerminal<CartaoResolveResult>({
         action: 'resolve_cartao',
