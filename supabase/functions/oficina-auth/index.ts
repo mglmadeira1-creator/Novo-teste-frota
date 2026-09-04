@@ -219,11 +219,12 @@ async function loginMechanic(reqBody: JsonRecord, supabase: ReturnType<typeof cr
     return jsonResponse({ error: "Secret OFICINA_CODE_PEPPER nao configurado." }, 500);
   }
 
+  const mecanicoNome = normalizeText(reqBody.mecanicoNome);
   const code = normalizeCode(reqBody.codigo);
   const terminalCode = normalizeText(reqBody.terminalCode || "OF-TERM-01").toUpperCase();
 
-  if (!code) {
-    return jsonResponse({ error: "Codigo de acesso obrigatorio." }, 400);
+  if (!mecanicoNome || !code) {
+    return jsonResponse({ error: "Nome e codigo de acesso obrigatorios." }, 400);
   }
 
   const lookupHash = await sha256Hex(`${OFICINA_CODE_PEPPER}:${code}`);
@@ -240,6 +241,10 @@ async function loginMechanic(reqBody: JsonRecord, supabase: ReturnType<typeof cr
 
   if (!mecanico || mecanico.estado !== "ativo") {
     return jsonResponse({ error: "Codigo invalido ou inativo." }, 401);
+  }
+
+  if (normalizeText(mecanico.nome).toLocaleLowerCase() !== mecanicoNome.toLocaleLowerCase()) {
+    return jsonResponse({ error: "Nome ou codigo de acesso invalidos." }, 401);
   }
 
   const compareHash = await sha256Hex(`${mecanico.codigo_salt}:${code}`);

@@ -9,6 +9,78 @@
   }
 }
 
+@media (max-width: 639px) {
+  .motorista-card-viewport {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .motorista-card-button {
+    width: 100vw;
+    height: 100dvh;
+    aspect-ratio: auto;
+  }
+}
+
+@media (max-width: 639px) and (orientation: portrait) {
+  .motorista-card-button {
+    width: 100dvh;
+    height: 100vw;
+    transform: rotate(90deg);
+  }
+}
+
+@media (max-width: 639px) {
+  .oficina-card-preview {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100dvh;
+    margin: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .oficina-card-preview-image {
+    width: 100vw;
+    height: 100dvh;
+  }
+
+  .oficina-card-preview-details {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 1;
+    border: 1px solid rgb(8 145 178 / 35%);
+    border-radius: 0.75rem;
+    background: rgb(2 6 23 / 88%);
+    padding: 0.75rem;
+    backdrop-filter: blur(8px);
+  }
+}
+
+@media (max-width: 639px) and (orientation: portrait) {
+  .oficina-card-preview-image {
+    width: 100dvh;
+    height: 100vw;
+    transform: rotate(90deg);
+  }
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;

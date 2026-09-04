@@ -6,7 +6,7 @@ import { useOficinaSession } from '../../oficina/OficinaSessionProvider';
 function normalizeErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     if (error.message.toLowerCase().includes('functionshttperror')) {
-      return 'Nao foi possivel autenticar no terminal. Verifica o codigo e o estado do acesso.';
+      return 'Nao foi possivel autenticar. Verifica o nome, o codigo e o estado do acesso.';
     }
 
     return error.message;
@@ -18,8 +18,8 @@ function normalizeErrorMessage(error: unknown): string {
 export const OficinaLoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login, autoLocked, clearAutoLocked } = useOficinaSession();
+  const [nome, setNome] = useState('');
   const [codigo, setCodigo] = useState('');
-  const [terminalCode, setTerminalCode] = useState('OF-TERM-01');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,19 +27,19 @@ export const OficinaLoginPage: React.FC = () => {
     event.preventDefault();
     setError(null);
 
+    if (!nome.trim()) {
+      setError('Insere o nome do mecanico.');
+      return;
+    }
+
     if (!codigo.trim()) {
       setError('Insere o codigo de acesso do mecanico.');
       return;
     }
 
-    if (!terminalCode.trim()) {
-      setError('Insere o codigo do terminal.');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      await login(codigo, terminalCode);
+      await login(nome, codigo);
       navigate('/oficina/terminal', { replace: true });
     } catch (err) {
       console.error('[Oficina][Login] Falha no login por codigo', err);
@@ -60,7 +60,7 @@ export const OficinaLoginPage: React.FC = () => {
               Frota Pro Oficina
             </div>
             <h1 className="text-lg font-semibold">Terminal Oficina</h1>
-            <p className="text-xs text-slate-400 mt-1">Acesso por codigo de mecanico</p>
+             <p className="text-xs text-slate-400 mt-1">Acesso por nome e codigo de mecanico</p>
           </div>
 
           <form onSubmit={onSubmit} className="p-6 space-y-4">
@@ -78,12 +78,12 @@ export const OficinaLoginPage: React.FC = () => {
             )}
 
             <label className="block space-y-1">
-              <span className="text-xs text-slate-400">Codigo do terminal</span>
+               <span className="text-xs text-slate-400">Nome do mecanico</span>
               <input
-                value={terminalCode}
-                onChange={(event) => setTerminalCode(event.target.value.toUpperCase())}
+                 value={nome}
+                 onChange={(event) => setNome(event.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
-                placeholder="OF-TERM-01"
+                 placeholder="Nome completo"
               />
             </label>
 

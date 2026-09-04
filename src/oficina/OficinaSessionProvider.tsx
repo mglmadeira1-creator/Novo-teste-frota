@@ -28,7 +28,7 @@ interface OficinaSessionContextValue {
   terminal: OficinaSessionPayload['terminal'] | null;
   autoLocked: boolean;
   clearAutoLocked: () => void;
-  login: (codigo: string, terminalCode: string) => Promise<void>;
+  login: (nome: string, codigo: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -161,8 +161,8 @@ export const OficinaSessionProvider: React.FC<{ children: React.ReactNode }> = (
     };
   }, [token]);
 
-  const login = async (codigo: string, terminalCode: string) => {
-    const result = await oficinaTerminalService.login(codigo, terminalCode);
+  const login = async (nome: string, codigo: string) => {
+    const result = await oficinaTerminalService.login(nome, codigo);
 
     const payload: OficinaSessionPayload = {
       token: result.token,

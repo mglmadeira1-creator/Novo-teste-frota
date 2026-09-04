@@ -64,7 +64,7 @@ export const MotoristaPainelPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#071b2e] text-slate-100 p-4 sm:p-6">
+    <div className="min-h-screen bg-[#071b2e] text-slate-100 p-0 sm:p-6">
       <div className="mx-auto max-w-5xl">
         {error && (
           <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 p-3 text-xs text-rose-200">
@@ -80,13 +80,13 @@ export const MotoristaPainelPage: React.FC = () => {
 
         {!error && cartao && (
           <div className="space-y-4">
-            <div className="mx-auto w-full max-w-[760px] [perspective:1600px]">
+            <div className="motorista-card-viewport mx-auto w-screen max-w-none [perspective:1600px] sm:w-full sm:max-w-[760px]">
               <button
                 type="button"
                 onClick={() => setIsFlipped((current) => !current)}
                 aria-pressed={isFlipped}
                 aria-label={isFlipped ? 'Mostrar frente do cartão' : 'Mostrar verso do cartão com QR code'}
-                className="group relative block aspect-[1011/638] w-full cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-4 focus-visible:ring-offset-[#071b2e]"
+                className="motorista-card-button group relative block aspect-[1011/638] w-full cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-4 focus-visible:ring-offset-[#071b2e] sm:h-auto"
               >
                 <span
                   className="absolute inset-0 block transition-transform duration-500 [transform-style:preserve-3d]"
@@ -96,7 +96,7 @@ export const MotoristaPainelPage: React.FC = () => {
                     <FuelCard
                       motoristaNome={cartao.motoristaNome}
                       numeroCartao={cartao.numeroCartao}
-                      className="h-full mx-auto"
+                      className="mx-auto h-full [&>div]:aspect-auto [&>div]:h-full [&>div]:rounded-none [&>div]:sm:rounded-[1.6rem]"
                     />
                   </span>
 
@@ -114,7 +114,7 @@ export const MotoristaPainelPage: React.FC = () => {
                   </span>
                 </span>
               </button>
-              <p className="mt-3 text-center text-xs text-slate-500" aria-hidden="true">
+              <p className="mt-3 hidden text-center text-xs text-slate-500 sm:block" aria-hidden="true">
                 Toca no cartão para ver o QR code
               </p>
             </div>

@@ -72,11 +72,11 @@ async function invokeOficinaAuth<T>(payload: Record<string, unknown>): Promise<T
 }
 
 export const oficinaTerminalService = {
-  async login(codigo: string, terminalCode: string): Promise<OficinaLoginResult> {
+  async login(nome: string, codigo: string): Promise<OficinaLoginResult> {
     return await invokeOficinaAuth<OficinaLoginResult>({
       action: 'login',
+      mecanicoNome: nome,
       codigo,
-      terminalCode
     });
   },
 
