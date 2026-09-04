@@ -35,17 +35,26 @@ export const ViaturaDetailModal: React.FC<Props> = ({ viatura, onClose, onRefres
   const [trips, setTrips] = useState<CartrackTripRaw[]>([]);
   const [selectedTrip, setSelectedTrip] = useState<CartrackTripRaw | null>(null);
   const [isLoadingTrips, setIsLoadingTrips] = useState(false);
+  const [tripError, setTripError] = useState<string | null>(null);
 
   const loadTrips = async () => {
     setIsLoadingTrips(true);
-    const result = await cartrackApi.getTrips(
-      viatura.registration,
-      `${tripStartDate}T00:00:00`,
-      `${tripEndDate}T23:59:59`
-    );
-    setTrips(result);
-    setSelectedTrip(null);
-    setIsLoadingTrips(false);
+    setTripError(null);
+    try {
+      const result = await cartrackApi.getTrips(
+        viatura.registration,
+        `${tripStartDate}T00:00:00`,
+        `${tripEndDate}T23:59:59`
+      );
+      setTrips(result);
+      setSelectedTrip(null);
+    } catch (error) {
+      console.error('[Viaturas][Trips] Falha ao carregar viagens', error);
+      setTrips([]);
+      setTripError(error instanceof Error ? error.message : 'Não foi possível carregar as viagens da Cartrack.');
+    } finally {
+      setIsLoadingTrips(false);
+    }
   };
 
   React.useEffect(() => {
@@ -296,6 +305,7 @@ export const ViaturaDetailModal: React.FC<Props> = ({ viatura, onClose, onRefres
               </div>
 
               {isLoadingTrips && <p className="text-slate-400">A carregar viagens da Cartrack...</p>}
+              {tripError && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-rose-200">{tripError}</p>}
               {!isLoadingTrips && filteredTrips.length === 0 && <p className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-slate-400">Não foram encontradas viagens nesse período/horário.</p>}
               <div className="grid gap-2">
                 {filteredTrips.map((trip, index) => (

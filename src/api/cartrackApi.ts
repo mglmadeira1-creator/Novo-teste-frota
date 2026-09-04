@@ -151,6 +151,39 @@ async function callProxy<T>(action: string, params: Record<string, string> = {})
   }
 }
 
+function extractCollection<T>(response: unknown, keys: string[]): T[] {
+  if (Array.isArray(response)) {
+    return response as T[];
+  }
+
+  if (!response || typeof response !== 'object') {
+    return [];
+  }
+
+  const record = response as Record<string, unknown>;
+  for (const key of keys) {
+    if (Array.isArray(record[key])) {
+      return record[key] as T[];
+    }
+  }
+
+  return [];
+}
+
+function normalizeTrip(trip: CartrackTripRaw): CartrackTripRaw {
+  const raw = trip as CartrackTripRaw & Record<string, unknown>;
+  return {
+    ...trip,
+    start_timestamp: String(raw.start_timestamp || raw.start_time || raw.started_at || ''),
+    end_timestamp: String(raw.end_timestamp || raw.end_time || raw.ended_at || ''),
+    start_location: String(raw.start_location || raw.start_address || ''),
+    end_location: String(raw.end_location || raw.end_address || ''),
+    distance_km: typeof raw.distance_km === 'number' ? raw.distance_km : typeof raw.distance === 'number' ? raw.distance : undefined,
+    duration_seconds: typeof raw.duration_seconds === 'number' ? raw.duration_seconds : typeof raw.duration === 'number' ? raw.duration : undefined,
+    max_speed_kmh: typeof raw.max_speed_kmh === 'number' ? raw.max_speed_kmh : typeof raw.max_speed === 'number' ? raw.max_speed : undefined
+  };
+}
+
 export const cartrackApi = {
   // Lista de viaturas cadastradas na Cartrack
   getVehicles: async (): Promise<CartrackVehicleRaw[]> => {
@@ -178,15 +211,12 @@ export const cartrackApi = {
 
   // Histórico de viagens de uma viatura
   getTrips: async (registration: string, startDate?: string, endDate?: string): Promise<CartrackTripRaw[]> => {
-    try {
-      const params: Record<string, string> = { registration };
-      if (startDate) params.start_date = startDate;
-      if (endDate) params.end_date = endDate;
-      const res = await callProxy<{ data?: CartrackTripRaw[] }>('trips', params);
-      return res.data || [];
-    } catch (e) {
-      console.error('[cartrackApi] Falha ao obter viagens Cartrack:', e);
-      return [];
-    }
+    const params: Record<string, string> = { registration };
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    const response = await callProxy<unknown>('trips', params);
+    const trips = extractCollection<CartrackTripRaw>(response, ['data', 'trips', 'results', 'items']);
+    console.info('[cartrackApi] trips response', { registration, total: trips.length });
+    return trips.map(normalizeTrip).filter((trip) => trip.start_timestamp && trip.end_timestamp);
   }
 };
