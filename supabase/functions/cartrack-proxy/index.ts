@@ -51,8 +51,8 @@ serve(async (req) => {
       targetEndpoint = "/trips";
       if (vehicleId) queryParams.set("vehicle_id", vehicleId);
       else if (registration) queryParams.set("registration", registration);
-      if (startDate) queryParams.set("start_timestamp", startDate.slice(0, 10));
-      if (endDate) queryParams.set("end_timestamp", endDate.slice(0, 10));
+      if (startDate) queryParams.set("start_timestamp", `${startDate.slice(0, 10)} 00:00:00`);
+      if (endDate) queryParams.set("end_timestamp", `${endDate.slice(0, 10)} 23:59:59`);
     } else {
       if (registration) queryParams.set("registration", registration);
     }
