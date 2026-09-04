@@ -103,6 +103,7 @@ export interface OficinaAbastecimentoConfirmado {
 export interface OficinaViaturaItem {
   cartrack_vehicle_id: string;
   cartrack_registration: string;
+  odometer_km?: number | null;
   motorista_associado_id?: string | null;
   motorista_nome?: string | null;
   ativo?: boolean;

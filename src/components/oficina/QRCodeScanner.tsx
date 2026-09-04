@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, CameraOff } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 interface QRCodeScannerProps {
   onScan: (value: string) => void;
@@ -9,20 +9,42 @@ interface QRCodeScannerProps {
 
 export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose }) => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const hasScannedRef = useRef(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(true);
 
   useEffect(() => {
     const scannerId = 'oficina-qr-reader';
-    const scanner = new Html5Qrcode(scannerId);
+    const scanner = new Html5Qrcode(scannerId, {
+      verbose: false,
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+    });
     scannerRef.current = scanner;
 
     const startScanner = async () => {
       try {
+        const cameras = await Html5Qrcode.getCameras();
+        const rearCamera = cameras.find((camera) => /back|rear|environment|traseira|tras/i.test(camera.label));
+        const camera = rearCamera?.id || cameras[0]?.id;
+
+        if (!camera) {
+          throw new Error('Nenhuma câmara encontrada.');
+        }
+
         await scanner.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 260, height: 180 }, aspectRatio: 1.5 },
+          camera,
+          {
+            fps: 15,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.78);
+              return { width: Math.max(220, size), height: Math.max(220, size) };
+            },
+            aspectRatio: 1,
+            disableFlip: false
+          },
           (decodedText) => {
+            if (hasScannedRef.current) return;
+            hasScannedRef.current = true;
             onScan(decodedText);
             void scanner.stop().catch(() => undefined);
           },
@@ -47,6 +69,19 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose })
     };
   }, [onScan]);
 
+  const handleImageScan = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !scannerRef.current) return;
+
+    try {
+      const decodedText = await scannerRef.current.scanFile(file, true);
+      onScan(decodedText);
+    } catch {
+      setScannerError('Não foi possível ler o QR Code da imagem. Usa uma fotografia nítida e bem iluminada.');
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-cyan-400/25 bg-slate-950 p-4 shadow-inner shadow-cyan-950/20">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -64,7 +99,11 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose })
       </div>
 
       <div id="oficina-qr-reader" className="overflow-hidden rounded-xl border border-slate-700 bg-black" />
-      {isStarting && <p className="mt-3 text-center text-xs text-slate-400">A abrir a câmara...</p>}
+      <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-slate-700 px-4 text-sm text-slate-300 hover:bg-slate-800">
+        Ler QR a partir de fotografia
+        <input type="file" accept="image/*" capture="environment" onChange={handleImageScan} className="sr-only" />
+      </label>
+      {isStarting && <p className="mt-3 text-center text-xs text-slate-400">A abrir a câmara traseira e a procurar um QR Code...</p>}
       {scannerError && <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/10 p-3 text-xs text-amber-200">{scannerError}</p>}
     </div>
   );

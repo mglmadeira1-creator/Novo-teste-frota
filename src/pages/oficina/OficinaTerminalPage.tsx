@@ -158,6 +158,8 @@ export const OficinaTerminalPage: React.FC = () => {
 
   const handleSelecionarViatura = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
+    const vehicle = viaturas.find((item) => item.cartrack_vehicle_id === vehicleId);
+    setQuilometragemKm(vehicle?.odometer_km ? String(Math.round(vehicle.odometer_km)) : '');
   };
 
   const handleAvancarParaAbastecimento = () => {
@@ -268,9 +270,10 @@ export const OficinaTerminalPage: React.FC = () => {
                 <input
                   autoFocus
                   value={cartaoInput}
+                  readOnly
                   onChange={(event) => setCartaoInput(event.target.value)}
-                  className="min-h-14 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-lg font-mono tracking-wider focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
-                  placeholder="Leia o QR Code ou introduza o número"
+                  className="min-h-14 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-lg font-mono tracking-wider text-cyan-200 focus:outline-none"
+                  placeholder="Leia o QR Code no cartão"
                 />
                 </label>
                 <button
@@ -344,7 +347,10 @@ export const OficinaTerminalPage: React.FC = () => {
                     onClick={() => handleSelecionarViatura(v.cartrack_vehicle_id)}
                     className={`min-h-14 w-full rounded-xl border px-4 text-left text-base ${selectedVehicleId === v.cartrack_vehicle_id ? 'border-cyan-500 bg-cyan-500/10 text-cyan-100' : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'}`}
                   >
-                    {v.cartrack_registration}
+                    <span className="block font-semibold">{v.cartrack_registration}</span>
+                    <span className="mt-1 block text-xs text-slate-400">
+                      {v.odometer_km ? `${Math.round(v.odometer_km).toLocaleString('pt-PT')} km Cartrack` : 'Odómetro Cartrack indisponível'}
+                    </span>
                   </button>
                 ))}
                 {viaturasFiltradas.length === 0 && (
@@ -405,12 +411,12 @@ export const OficinaTerminalPage: React.FC = () => {
                 </label>
 
                 <label className="block space-y-1">
-                  <span className="text-xs text-slate-400">Quilometragem (km)</span>
+                  <span className="text-xs text-slate-400">Quilometragem atual (Cartrack)</span>
                   <input
                     value={quilometragemKm}
-                    onChange={(event) => setQuilometragemKm(event.target.value)}
-                    className="min-h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-base focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
-                    placeholder="182450"
+                    readOnly
+                    className="min-h-12 w-full rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 text-base font-semibold text-emerald-200 focus:outline-none"
+                    placeholder="A carregar da Cartrack..."
                   />
                 </label>
               </div>

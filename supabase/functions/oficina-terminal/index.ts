@@ -71,6 +71,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 interface CartrackVeiculoResumo {
   cartrack_vehicle_id: string;
   cartrack_registration: string;
+  odometer_km: number | null;
 }
 
 async function fetchCartrackVeiculos(): Promise<CartrackVeiculoResumo[]> {
@@ -79,19 +80,39 @@ async function fetchCartrackVeiculos(): Promise<CartrackVeiculoResumo[]> {
   }
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/cartrack-proxy?action=vehicles&limit=500`);
-    if (!res.ok) {
+    const [vehiclesResponse, statusResponse] = await Promise.all([
+      fetch(`${SUPABASE_URL}/functions/v1/cartrack-proxy?action=vehicles&limit=500`),
+      fetch(`${SUPABASE_URL}/functions/v1/cartrack-proxy?action=vehicles_status&limit=500`)
+    ]);
+    if (!vehiclesResponse.ok) {
       return [];
     }
 
-    const json = await res.json();
+    const json = await vehiclesResponse.json();
+    const statusJson = statusResponse.ok ? await statusResponse.json() : {};
     const data = Array.isArray(json?.data) ? json.data : [];
+    const statuses = Array.isArray(statusJson?.data) ? statusJson.data : [];
+    const statusByVehicle = new Map<string, JsonRecord>();
+    statuses.forEach((status: JsonRecord) => statusByVehicle.set(String(status.vehicle_id), status));
 
     return data
-      .map((vehicle: JsonRecord) => ({
-        cartrack_vehicle_id: String(vehicle.vehicle_id),
-        cartrack_registration: String(vehicle.registration || "")
-      }))
+      .map((vehicle: JsonRecord) => {
+        const vehicleId = String(vehicle.vehicle_id);
+        const status = statusByVehicle.get(vehicleId) || {};
+        const odometerInKm = Number(status.odometer_in_kms);
+        const rawOdometer = Number(status.odometer);
+        const odometerKm = Number.isFinite(odometerInKm)
+          ? odometerInKm
+          : Number.isFinite(rawOdometer)
+            ? (status.location || status.event_ts ? Math.round(rawOdometer / 1000) : rawOdometer)
+            : null;
+
+        return {
+          cartrack_vehicle_id: vehicleId,
+          cartrack_registration: String(vehicle.registration || ""),
+          odometer_km: Number.isFinite(odometerKm) ? odometerKm : null
+        };
+      })
       .filter((v: CartrackVeiculoResumo) => v.cartrack_registration)
       .sort((a: CartrackVeiculoResumo, b: CartrackVeiculoResumo) => a.cartrack_registration.localeCompare(b.cartrack_registration));
   } catch (err) {

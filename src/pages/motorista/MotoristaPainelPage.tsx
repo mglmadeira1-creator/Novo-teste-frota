@@ -28,6 +28,11 @@ export const MotoristaPainelPage: React.FC = () => {
           return;
         }
 
+        if (!motoristaSession.qrTokenId) {
+          setError('Este cartão não tem um QR Code válido. Sai e entra novamente para atualizar a sessão.');
+          return;
+        }
+
         setCartao({
           numeroCartao: motoristaSession.numeroCartao,
           estado: (motoristaSession.estado || 'ativo') as MotoristaCartaoData['estado'],
@@ -49,7 +54,7 @@ export const MotoristaPainelPage: React.FC = () => {
 
   const qrcodeSize = useMemo(() => {
     if (typeof window === 'undefined') return 120;
-    return Math.min(window.innerWidth * 0.22, 150);
+    return Math.min(Math.max(window.innerWidth * 0.55, 220), 320);
   }, []);
 
   if (loading) {
@@ -102,8 +107,8 @@ export const MotoristaPainelPage: React.FC = () => {
 
                   <span className="absolute inset-0 flex rotate-y-180 flex-col items-center justify-center overflow-hidden rounded-[1.6rem] border border-slate-700 bg-slate-900 px-4 py-5 shadow-[0_20px_60px_-25px_rgba(15,23,42,0.8)] [backface-visibility:hidden] [transform:rotateY(180deg)] sm:px-8 sm:py-8">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-300 sm:text-xs">Cartão de abastecimento</span>
-                    <span className="mt-3 rounded-xl bg-white p-3 shadow-xl sm:p-4">
-                      <QRCode value={cartao.qrValue} size={qrcodeSize} />
+                    <span className="mt-3 rounded-xl bg-white p-4 shadow-xl sm:p-5">
+                      <QRCode value={cartao.qrValue} size={qrcodeSize} level="M" bgColor="#ffffff" fgColor="#050b16" />
                     </span>
                     <span className="mt-3 text-center text-xs text-slate-400">Apresente este código para abastecer</span>
                     {isBlocked && (
